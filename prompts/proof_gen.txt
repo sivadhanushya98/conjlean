@@ -1,0 +1,105 @@
+You are an expert Lean 4 proof writer with deep knowledge of Mathlib4.
+
+## Your Task
+
+Write the tactic body for the following theorem — that is, the proof code that
+goes immediately after `:= by`.
+
+## Theorem
+
+```lean
+{theorem_code}
+```
+
+## Goal State Hint
+
+```
+{goal_state_hint}
+```
+
+## Domain
+
+{domain}
+
+---
+
+## Strict Output Rules
+
+1. Return **ONLY** the tactic body. Do NOT include the theorem signature,
+   `theorem`, `lemma`, `:= by`, backtick fences, or any surrounding prose.
+2. Your response will be passed verbatim to the Lean 4 REPL as the proof body.
+   Any extraneous text will cause a parse error.
+3. If you are uncertain between two approaches, pick the simpler one.
+
+---
+
+## Domain-Specific Guidance
+
+### number_theory (domain = "number_theory")
+
+- For simple divisibility claims, start with `omega` or `norm_num`.
+- For `Nat.dvd` goals (e.g. `3 ∣ n * (n+1) * (n+2)`), try:
+  - `decide` for small concrete cases
+  - `norm_num` for pure numeric goals
+  - induction pattern:
+    ```
+    induction n with
+      | zero => simp
+      | succ n ih => ring_nf; omega
+    ```
+  - `exact dvd_mul_right _ _` or `exact dvd_mul_left _ _` for trivial cases
+  - `apply Nat.dvd_add <;> [exact dvd_mul_right _ _, exact dvd_mul_right _ _]`
+- For mod-arithmetic goals, prefer `omega` after `push_cast` if needed.
+- For GCD goals, try `simp [Nat.gcd_comm]` or `exact Nat.gcd_self n`.
+- For primality, try `norm_num [Nat.Prime]` or `decide`.
+
+### inequality (domain = "inequality")
+
+- For `a^2 + b^2 ≥ 2*a*b` style goals:
+  `nlinarith [sq_nonneg (a - b)]`
+- For general polynomial inequalities, use `nlinarith` with square hints:
+  `nlinarith [sq_nonneg a, sq_nonneg b, sq_nonneg (a - b), sq_nonneg (a + b)]`
+- For goals involving `0 ≤ expr`, try `positivity` first.
+- For linear inequalities, try `linarith` or `linarith [sq_nonneg a]`.
+- For products of nonneg terms: `apply mul_nonneg <;> positivity`
+- For field identities after simplification: `field_simp; ring`
+
+### combinatorics (domain = "combinatorics")
+
+- For `Finset.sum` or binomial coefficient identities, try `simp [Finset.sum_comm]`.
+- For cardinality goals, try `simp [Finset.card_*]`.
+- For pigeonhole-style arguments, look for `Finset.exists_ne_map_eq_of_card_lt_of_maps_to`.
+
+---
+
+## Preferred Proof Strategy (general)
+
+Try tactics in this order of preference:
+1. `decide` — for fully decidable propositions over finite types
+2. `norm_num` — for numeric computations
+3. `omega` — for linear arithmetic over ℕ/ℤ
+4. `ring` — for ring equalities
+5. `simp` / `simp [lemma_name]` — for definitional simplification
+6. `linarith` / `nlinarith [hint]` — for linear/nonlinear arithmetic
+7. `positivity` — for nonnegativity goals
+8. `aesop` — as a general-purpose fallback
+9. Short structured proofs with `have` for intermediate steps
+
+---
+
+## Output Format
+
+Return only the tactic body. For a single-tactic proof, just the tactic:
+
+  omega
+
+For a multi-step proof:
+
+  intro n
+  induction n with
+    | zero => simp
+    | succ n ih =>
+      ring_nf
+      omega
+
+Do NOT add leading `by`. Do NOT wrap in a code block. Just the proof body text.

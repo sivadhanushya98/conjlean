@@ -1,0 +1,18 @@
+name = "conjlean"
+version = "0.1.0"
+defaultTargets = ["ConjLean"]
+
+[[require]]
+name = "mathlib"
+from = "git"
+url = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.14.0"
+
+[[require]]
+name = "repl"
+from = "git"
+url = "https://github.com/leanprover-community/repl"
+rev = "main"
+
+[[lean_lib]]
+name = "ConjLean"

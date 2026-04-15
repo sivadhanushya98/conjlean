@@ -1,0 +1,32 @@
+Generate exactly {n} mathematical conjectures in the domain of {domain}.
+
+## Domain
+
+{domain}
+
+## Domain-Specific Guidance
+
+{domain_guidance}
+
+## Few-Shot Examples for This Domain
+
+The following are examples of well-formed conjectures for this domain. Study their structure, precision, and difficulty calibration — then generate {n} NEW conjectures that are structurally diverse from each other and from these examples.
+
+{few_shot_examples}
+
+## Task
+
+Generate exactly {n} conjectures now. Output one JSON object per line, no other text.
+
+Each line must follow this schema exactly:
+{{"statement": "<precise mathematical statement>", "variables": ["<var1>", "<var2>", ...], "difficulty": "easy|medium|hard"}}
+
+Requirements:
+- All {n} conjectures must be in the {domain} domain
+- Each conjecture must follow the domain-specific guidance above
+- No two conjectures may be structurally identical or trivial variations of each other
+- Every statement must be precisely quantified (no vague "for large n" without an explicit bound)
+- Apply your self-filtering checklist before outputting each line
+- Do not repeat the few-shot examples verbatim
+
+Output {n} lines of JSON now:

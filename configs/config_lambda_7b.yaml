@@ -1,0 +1,60 @@
+# ConjLean — Lambda Labs single A100 (40 GB or 80 GB)
+# Model: Qwen/Qwen2.5-Math-7B-Instruct via local HuggingFace inference
+# Provider: local_hf (no API key needed — model loads directly via transformers)
+#
+# Usage:
+#   python3 run.py run --config configs/config_lambda_7b.yaml \
+#       --domains number_theory inequality --n-per-domain 100
+#
+# VRAM requirement: ~16 GB  →  fits on any Lambda Labs A100 instance
+
+provider: local_hf
+
+models:
+  conjecture_gen: Qwen/Qwen2.5-Math-7B-Instruct
+  formalizer: Qwen/Qwen2.5-Math-7B-Instruct
+  proof_gen: Qwen/Qwen2.5-Math-7B-Instruct
+
+api_keys:
+  anthropic: ""
+  openai: ""
+  gemini: ""
+  huggingface: ""  # set HF_TOKEN env var if needed for gated models
+
+local_hf:
+  model: "Qwen/Qwen2.5-Math-7B-Instruct"
+  torch_dtype: "bfloat16"
+  device_map: "auto"
+  max_new_tokens: 4096
+  load_in_4bit: false
+  load_in_8bit: false
+  trust_remote_code: true
+
+lean:
+  project_dir: "./lean"
+  build_timeout: 300
+  repl_timeout: 30
+
+pipeline:
+  domains:
+    - number_theory
+    - inequality
+  conjectures_per_domain: 100
+  max_formalization_retries: 5
+  max_proof_retries: 3
+
+generation:
+  temperature: 0.8
+  batch_size: 20
+
+proof_search:
+  layer0_timeout: 5
+  layer1_timeout: 30
+  layer2_timeout: 60
+  layer3_timeout: 120
+  layer3_max_rounds: 3
+
+output:
+  save_dir: "./data/results"
+  save_lean_proofs: true
+  log_level: "INFO"

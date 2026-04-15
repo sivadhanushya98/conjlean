@@ -1,0 +1,63 @@
+# ConjLean pipeline configuration
+# Provider: anthropic | openai | gemini | huggingface | vllm | local_hf
+provider: anthropic
+
+models:
+  conjecture_gen: claude-sonnet-4-6
+  formalizer: claude-sonnet-4-6
+  proof_gen: claude-sonnet-4-6
+
+# API keys — override via environment variables
+api_keys:
+  anthropic: ""   # or set ANTHROPIC_API_KEY
+  openai: ""      # or set OPENAI_API_KEY
+  gemini: ""      # or set GEMINI_API_KEY
+  huggingface: "" # or set HF_TOKEN
+
+vllm:
+  base_url: "http://localhost:8000/v1"
+  model: "Qwen/Qwen2.5-Math-72B-Instruct"
+
+# Local HuggingFace inference (Lambda Labs / any GPU machine — no API key needed)
+# Recommended models:
+#   Qwen/Qwen2.5-Math-7B-Instruct       — 16 GB VRAM, 1×A100, best 7B math model
+#   Qwen/Qwen2.5-Math-72B-Instruct      — 160 GB VRAM, 2×A100-80G, SOTA math
+#   deepseek-ai/DeepSeek-Math-7B-Instruct — 16 GB VRAM, strong alternative
+#   Qwen/QwQ-32B                         — 80 GB VRAM, 1×A100-80G, reasoning
+local_hf:
+  model: "Qwen/Qwen2.5-Math-7B-Instruct"
+  torch_dtype: "bfloat16"    # bfloat16 | float16 | float32
+  device_map: "auto"         # auto-distributes across all visible GPUs
+  max_new_tokens: 4096
+  load_in_4bit: false        # set true to halve VRAM (needs bitsandbytes)
+  load_in_8bit: false
+  trust_remote_code: true    # required for Qwen
+
+lean:
+  project_dir: "./lean"
+  build_timeout: 300
+  repl_timeout: 30
+
+pipeline:
+  domains:
+    - number_theory
+    - inequality
+  conjectures_per_domain: 100
+  max_formalization_retries: 5
+  max_proof_retries: 3
+
+generation:
+  temperature: 0.8
+  batch_size: 20
+
+proof_search:
+  layer0_timeout: 5
+  layer1_timeout: 30
+  layer2_timeout: 60
+  layer3_timeout: 120
+  layer3_max_rounds: 3
+
+output:
+  save_dir: "./data/results"
+  save_lean_proofs: true
+  log_level: "INFO"

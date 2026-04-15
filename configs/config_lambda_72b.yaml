@@ -1,0 +1,58 @@
+# ConjLean — Lambda Labs dual A100 80 GB (2× A100 SXM4 80 GB)
+# Model: Qwen/Qwen2.5-Math-72B-Instruct via vLLM OpenAI-compatible server
+# Provider: vllm
+#
+# Step 1 — start the vLLM server in a tmux pane:
+#   bash scripts/start_vllm_lambda.sh Qwen/Qwen2.5-Math-72B-Instruct 8000
+#
+# Step 2 — run the pipeline in another pane:
+#   python3 run.py run --config configs/config_lambda_72b.yaml \
+#       --domains number_theory inequality --n-per-domain 200
+#
+# VRAM requirement: ~160 GB  →  requires 2× A100 SXM4 80 GB instance
+
+provider: vllm
+
+models:
+  conjecture_gen: Qwen/Qwen2.5-Math-72B-Instruct
+  formalizer: Qwen/Qwen2.5-Math-72B-Instruct
+  proof_gen: Qwen/Qwen2.5-Math-72B-Instruct
+
+api_keys:
+  anthropic: ""
+  openai: ""
+  gemini: ""
+  huggingface: ""  # set HF_TOKEN env var if model is gated
+
+vllm:
+  base_url: "http://localhost:8000/v1"
+  model: "Qwen/Qwen2.5-Math-72B-Instruct"
+
+lean:
+  project_dir: "./lean"
+  build_timeout: 300
+  repl_timeout: 30
+
+pipeline:
+  domains:
+    - number_theory
+    - inequality
+  conjectures_per_domain: 200
+  max_formalization_retries: 5
+  max_proof_retries: 3
+
+generation:
+  temperature: 0.8
+  batch_size: 20
+
+proof_search:
+  layer0_timeout: 5
+  layer1_timeout: 30
+  layer2_timeout: 60
+  layer3_timeout: 120
+  layer3_max_rounds: 3
+
+output:
+  save_dir: "./data/results"
+  save_lean_proofs: true
+  log_level: "INFO"

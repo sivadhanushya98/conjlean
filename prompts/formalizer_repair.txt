@@ -1,0 +1,54 @@
+Your previous Lean 4 formalization attempt failed to typecheck. Study the error carefully and produce a corrected version.
+
+This is repair attempt {retry_number} of {max_retries}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORIGINAL CONJECTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{conjecture_nl}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FAILED LEAN 4 CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+```lean
+{failed_code}
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LEAN ERROR  (exact output from the REPL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{lean_error}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ERROR CLASSIFICATION & TARGETED FIX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Error type : {error_type}
+Fix advice : {targeted_hint}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REPAIR INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Apply the targeted fix above. Also verify all of the following before
+submitting your corrected code:
+
+  • The file starts with `import Mathlib` (no other imports).
+  • The proof body is exactly `by\n  sorry` — no tactics, no placeholder text.
+  • All identifiers are fully qualified: Nat.Prime, Nat.gcd, Nat.factorial,
+    Nat.lcm, Real.sqrt, etc.
+  • Nat subtraction is not used where the result can be negative; use Int
+    variables or cast with (↑n : Int).
+  • Real-valued theorems carry the `noncomputable` keyword.
+  • Divisibility uses `∣` (Unicode \dvd), not `|`.
+  • Universal quantifiers appear in the theorem signature, not the conclusion.
+  • No #check, #eval, #print, or open ... in blocks are present.
+
+Respond with ONLY the corrected Lean 4 code block. No explanation.
+
+```lean
+<corrected lean 4 code here>
+```
