@@ -60,6 +60,144 @@ _PROVIDER_INFO: dict[str, list[str]] = {
 }
 
 # ---------------------------------------------------------------------------
+# REFUTE sub-command helpers
+# ---------------------------------------------------------------------------
+
+
+async def _cmd_refute(args: argparse.Namespace) -> None:
+    """
+    Run the REFUTE multi-agent counterexample pipeline on the benchmark.
+
+    Loads the benchmark dataset, runs the full REFUTE loop (R-Agent →
+    V-Agent → C-Agent → S-Agent), saves per-conjecture loop results to
+    JSONL, and prints a summary table.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
+    from conjlean.config import ConjLeanConfig
+    from conjlean.models import create_client
+    from conjlean.benchmark import BenchmarkLoader
+    from conjlean.refuter import Refuter
+    from conjlean.strategist import Strategist
+    from conjlean.refute_loop import RefuteLoop
+    import dataclasses
+
+    config = ConjLeanConfig.from_yaml(args.config)
+    if args.provider:
+        config = config.model_copy(update={"provider": args.provider})
+
+    _configure_logging(config.output.log_level)
+    logger = logging.getLogger(__name__)
+
+    client = create_client(config)
+    refuter = Refuter(client=client, config=config)
+    strategist = Strategist(client=client, config=config)
+    loop = RefuteLoop(client=client, refuter=refuter, strategist=strategist, config=config)
+
+    benchmark_dir = Path(args.benchmark_dir)
+    loader = BenchmarkLoader()
+    entries = loader.load_all(benchmark_dir)
+    conjectures = [e.conjecture for e in entries]
+
+    logger.info("Loaded %d benchmark entries from %s", len(entries), benchmark_dir)
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = output_dir / "loop_results.jsonl"
+
+    results = await loop.run_batch(
+        conjectures=conjectures,
+        max_rounds=args.max_rounds,
+        max_refinements=args.max_refinements,
+        max_concurrent=args.max_concurrent,
+    )
+
+    # Save results
+    with results_path.open("w", encoding="utf-8") as fh:
+        from conjlean.pipeline import _recursive_enum_to_value
+        for r in results:
+            record = _recursive_enum_to_value(dataclasses.asdict(r))
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    n_refuted = sum(1 for r in results if r.status.value in ("refuted", "refined"))
+    logger.info(
+        "REFUTE complete — %d/%d conjectures refuted. Results: %s",
+        n_refuted,
+        len(results),
+        results_path,
+    )
+
+
+def _cmd_refute_evaluate(args: argparse.Namespace) -> None:
+    """
+    Evaluate REFUTE loop results against the benchmark.
+
+    Loads loop results from JSONL and benchmark entries, computes
+    precision/recall/F1, strategy breakdown, and domain breakdown, then
+    prints a Rich report and optionally saves JSON+Markdown.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
+    from conjlean.refute_evaluate import RefuteEvaluator
+    from conjlean.benchmark import BenchmarkLoader
+    import dataclasses
+
+    _configure_logging("INFO")
+    logger = logging.getLogger(__name__)
+
+    results_path = Path(args.results)
+    benchmark_path = Path(args.benchmark)
+
+    if not results_path.is_file():
+        logger.error("Results file not found: %s", results_path)
+        sys.exit(1)
+    if not benchmark_path.is_file():
+        logger.error("Benchmark file not found: %s", benchmark_path)
+        sys.exit(1)
+
+    loader = BenchmarkLoader()
+    entries = loader.load_all(benchmark_path.parent)
+
+    from conjlean.schemas import (
+        RefuteLoopResult, RefuteLoopStatus, Conjecture, Domain,
+        CounterexampleCandidate, RefuterStrategy, CounterexampleStatus,
+        ConjectureRefinement, RefuterResult,
+    )
+
+    loop_results: list[RefuteLoopResult] = []
+    with results_path.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            # Minimal reconstruction for evaluation
+            orig = record["original_conjecture"]
+            conjecture = Conjecture(
+                id=orig["id"],
+                domain=Domain(orig["domain"]),
+                nl_statement=orig["nl_statement"],
+                variables=orig.get("variables", []),
+            )
+            loop_results.append(
+                RefuteLoopResult(
+                    original_conjecture=conjecture,
+                    status=RefuteLoopStatus(record["status"]),
+                    total_rounds=record.get("total_rounds", 0),
+                )
+            )
+
+    evaluator = RefuteEvaluator()
+    metrics = evaluator.evaluate(loop_results=loop_results, benchmark_entries=entries)
+    evaluator.print_report(metrics)
+
+    if args.output:
+        evaluator.save_report(metrics, Path(args.output))
+        logger.info("REFUTE evaluation report saved to %s.{json,md}", args.output)
+
+# ---------------------------------------------------------------------------
 # Logging helpers
 # ---------------------------------------------------------------------------
 
@@ -606,6 +744,39 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Print supported providers and required environment variables.",
     )
 
+    # ── refute ──────────────────────────────────────────────────────────
+    refute_parser = subparsers.add_parser(
+        "refute",
+        help="Run REFUTE multi-agent counterexample pipeline on benchmark.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    refute_parser.add_argument("--config", required=True, metavar="PATH", help="YAML config.")
+    refute_parser.add_argument("--provider", choices=list(_PROVIDER_INFO.keys()), default=None)
+    refute_parser.add_argument(
+        "--benchmark-dir", required=True, metavar="DIR",
+        help="Directory containing benchmark JSONL files.",
+    )
+    refute_parser.add_argument(
+        "--output", required=True, metavar="DIR", help="Output directory for loop results."
+    )
+    refute_parser.add_argument("--max-rounds", type=int, default=10, metavar="N")
+    refute_parser.add_argument("--max-refinements", type=int, default=3, metavar="N")
+    refute_parser.add_argument("--max-concurrent", type=int, default=4, metavar="N")
+
+    # ── refute-evaluate ─────────────────────────────────────────────────
+    re_parser = subparsers.add_parser(
+        "refute-evaluate",
+        help="Evaluate REFUTE loop results against the benchmark.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    re_parser.add_argument(
+        "--results", required=True, metavar="PATH", help="loop_results.jsonl from refute run."
+    )
+    re_parser.add_argument(
+        "--benchmark", required=True, metavar="PATH", help="Path to benchmark all.jsonl."
+    )
+    re_parser.add_argument("--output", default=None, metavar="PATH", help="Base path for report.")
+
     return parser
 
 
@@ -633,6 +804,10 @@ def main() -> None:
             asyncio.run(_cmd_formalize(args))
         elif args.command == "list-providers":
             _cmd_list_providers(args)
+        elif args.command == "refute":
+            asyncio.run(_cmd_refute(args))
+        elif args.command == "refute-evaluate":
+            _cmd_refute_evaluate(args)
         else:
             parser.print_help()
             sys.exit(1)

@@ -11,8 +11,9 @@ setup(
     name="conjlean",
     version="0.1.0",
     description=(
-        "Automated mathematical conjecture generation and Lean 4 formal "
-        "verification pipeline for ICML 2026."
+        "ConjLean/REFUTE: automated mathematical conjecture generation, "
+        "Lean 4 formal verification, and multi-agent counterexample search. "
+        "ICML AI4Research 2026."
     ),
     author="ConjLean Authors",
     python_requires=">=3.9",
@@ -37,6 +38,15 @@ setup(
         "dev": [
             "pytest>=8.3.0",
             "pytest-asyncio>=0.24.0",
+            "pytest-mock>=3.14.0",
+            "ruff>=0.9.0",
+        ],
+        "local_hf": [
+            "peft>=0.13.0",
+            "trl>=0.12.0",
+            "bitsandbytes>=0.44.0",
+            "datasets>=3.0.0",
+            "accelerate>=1.0.0",
         ],
     },
     entry_points={

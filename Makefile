@@ -60,6 +60,50 @@ run-72b:
 evaluate:
 	python3 run.py evaluate --results-dir data/results
 
+# ── REFUTE — Counterexample pipeline ─────────────────────────────────────────
+
+# Build the 3-tier benchmark dataset
+build-benchmark:
+	python3 scripts/build_benchmark.py \
+		--validate \
+		--output-dir data/benchmark
+
+# Generate LoRA training data (requires ANTHROPIC_API_KEY or similar)
+gen-training-data:
+	python3 scripts/gen_training_data.py \
+		--config configs/config.yaml \
+		--benchmark-dir data/benchmark \
+		--output data/training/samples.jsonl \
+		--n-traces 3 \
+		--max-concurrent 5
+
+# Fine-tune DeepSeek-Math-7B as the R-Agent via LoRA
+finetune-refuter:
+	python3 scripts/finetune_lora.py \
+		--config configs/finetune_config.yaml \
+		--data data/training/samples.jsonl \
+		--output models/refuter_lora_v1
+
+# Run REFUTE on the full benchmark (API-based, uses config.yaml provider)
+refute-benchmark:
+	python3 run.py refute \
+		--config configs/config.yaml \
+		--benchmark-dir data/benchmark \
+		--output data/refute_results
+
+# Run REFUTE with fine-tuned 7B model (Lambda Labs)
+refute-7b:
+	python3 run.py refute \
+		--config configs/config_lambda_7b.yaml \
+		--benchmark-dir data/benchmark \
+		--output data/refute_results_7b
+
+# Evaluate REFUTE results
+evaluate-refute:
+	python3 run.py refute-evaluate \
+		--results data/refute_results/loop_results.jsonl \
+		--benchmark data/benchmark/all.jsonl
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 list-providers:
 	python3 run.py list-providers

@@ -1,0 +1,212 @@
+# REFUTE LoRA Fine-tuning Configuration
+# Target model : DeepSeek-Math-7B-Instruct as the REFUTE R-Agent
+# Trainer      : scripts/finetune_lora.py  (RefuteLoRATrainer / trl.SFTTrainer)
+# Training data: produced by scripts/gen_training_data.py
+#
+# Hardware targets
+# ----------------
+# Recommended: Lambda Labs A100 80 GB (1× or 2× for 4-bit or full bfloat16)
+#   Single A100 80 GB : bf16=true, load_in_4bit=false
+#   Single A100 40 GB : bf16=true, load_in_4bit=true
+#   2× A100 40 GB     : bf16=true, load_in_4bit=false, device_map=auto
+#
+# Usage
+# -----
+#   python scripts/finetune_lora.py \
+#       --config configs/finetune_config.yaml \
+#       --data data/training/samples.jsonl \
+#       --output models/refuter_lora_v1
+
+# ===========================================================================
+# model — base model identity and loading parameters
+# ===========================================================================
+model:
+  # HuggingFace Hub repository ID for the R-Agent base model.
+  # DeepSeek-Math-7B-Instruct is pre-trained on mathematical corpora and
+  # instruction-tuned, making it the optimal starting point for counterexample
+  # reasoning fine-tuning.
+  base_model: "deepseek-ai/DeepSeek-Math-7B-Instruct"
+
+  # Floating-point precision for model weights and activations.
+  # bfloat16 is native on A100/H100 and avoids the overflow risks of float16.
+  # Fall back to "float16" on older V100 hardware; use "float32" for CPU only.
+  torch_dtype: "bfloat16"
+
+  # Enable bitsandbytes NF4 4-bit quantisation to approximately halve VRAM
+  # consumption (~7 GB → ~3.5 GB for the 7B model).  Set to true when running
+  # on a single A100 40 GB; set to false on A100 80 GB for full-precision LoRA.
+  load_in_4bit: true
+
+  # Required by DeepSeek-Math and several other third-party model families.
+  # Allows loading the model's custom tokenizer / modeling files from the Hub.
+  trust_remote_code: true
+
+  # Device placement strategy.  "auto" distributes transformer layers across
+  # all visible GPUs and CPU via accelerate, maximising VRAM utilisation on
+  # multi-GPU nodes.  Use "cuda:0" to pin to a specific GPU for debugging.
+  device_map: "auto"
+
+# ===========================================================================
+# lora — PEFT LoRA adapter architecture
+# ===========================================================================
+lora:
+  # LoRA intrinsic rank.  Controls the parameter budget of each adapter matrix.
+  # r=32 balances capacity for complex math reasoning against VRAM overhead.
+  # Increase to 64 if training data exceeds 10k samples; reduce to 16 for
+  # quick ablation runs.
+  r: 32
+
+  # LoRA scaling coefficient.  Effective adapter contribution = (lora_alpha / r).
+  # Convention: lora_alpha = 2 × r so the scale factor is 2, matching the
+  # original LoRA paper recommendation for instruction-following tasks.
+  lora_alpha: 64
+
+  # Transformer weight matrices to inject LoRA adapters into.
+  # Covering all attention projections (q/k/v/o) plus FFN gate/up/down ensures
+  # the adapter can modify both attention patterns and feed-forward reasoning
+  # paths, which is critical for mathematical counterexample generation.
+  target_modules:
+    - "q_proj"    # Query projection — controls attention query representations
+    - "v_proj"    # Value projection — controls attended value aggregation
+    - "k_proj"    # Key projection — controls what positions are attended to
+    - "o_proj"    # Output projection — fuses multi-head attention outputs
+    - "gate_proj" # SwiGLU gate — modulates FFN activation magnitude
+    - "up_proj"   # SwiGLU up-projection — expands hidden dimension
+    - "down_proj" # SwiGLU down-projection — contracts back to model dimension
+
+  # Dropout probability applied to LoRA adapter activations during training.
+  # 0.05 provides light regularisation without harming convergence on ~5k samples.
+  lora_dropout: 0.05
+
+  # Whether to include bias terms in the adapter.
+  # "none" keeps the base model biases frozen, reducing trainable parameters
+  # and preventing bias drift in the pre-trained representations.
+  bias: "none"
+
+  # PEFT task type identifier.  CAUSAL_LM selects the correct adapter head for
+  # autoregressive (decoder-only) language modeling, which SFTTrainer requires.
+  task_type: "CAUSAL_LM"
+
+# ===========================================================================
+# training — SFTTrainer / TrainingArguments hyperparameters
+# ===========================================================================
+training:
+  # Number of samples processed per GPU per forward/backward pass (micro-batch).
+  # 4 is the maximum that fits in ~40 GB VRAM with load_in_4bit=true and
+  # max_seq_length=2048; reduce to 2 if you encounter OOM.
+  per_device_train_batch_size: 4
+
+  # Micro-batch size for evaluation.  No gradients are retained so this can
+  # be larger; kept equal to train batch size for simplicity.
+  per_device_eval_batch_size: 4
+
+  # Number of micro-batches accumulated before a single optimizer step.
+  # Effective batch size = per_device_train_batch_size × gradient_accumulation_steps
+  #                      = 4 × 4 = 16 (on 1 GPU).
+  # 16 is a widely validated effective batch size for SFT on 7B models.
+  gradient_accumulation_steps: 4
+
+  # Full passes over the training dataset.  3 epochs is sufficient for ~5–10k
+  # REFUTE training triples without significant overfitting; increase to 5 for
+  # smaller datasets (< 2k samples).
+  num_train_epochs: 3
+
+  # Peak learning rate after warmup.  2e-4 is the empirically validated default
+  # for LoRA SFT on instruction-tuned 7B models across multiple benchmarks.
+  learning_rate: 2.0e-4
+
+  # Fraction of total optimizer steps used for linear LR warmup before
+  # the cosine decay phase begins.  5 % warmup prevents early instability.
+  warmup_ratio: 0.05
+
+  # Learning rate schedule after warmup.  Cosine annealing decays LR smoothly
+  # to near-zero by the final step, improving convergence on math reasoning.
+  lr_scheduler_type: "cosine"
+
+  # Maximum context length in tokens for each training sample.
+  # 2048 tokens covers the longest (conjecture + strategy + full reasoning trace
+  # + counterexample) sequence observed in the REFUTE training data.
+  # Sequences longer than this are truncated from the right.
+  max_seq_length: 2048
+
+  # Enable bfloat16 mixed-precision training on A100/H100 CUDA devices.
+  # finetune_lora.py gates this on torch.cuda.is_available() so it degrades
+  # gracefully to float32 on CPU.
+  bf16: true
+
+  # Recompute intermediate activations during the backward pass (activation
+  # checkpointing) to save ~30 % VRAM at the cost of ~20 % additional compute.
+  # Recommended when training a 7B model on a single 40 GB GPU.
+  gradient_checkpointing: true
+
+  # Log training loss and learning rate to the configured reporter every N
+  # optimizer steps.  10 steps ≈ one log line every ~40 training samples
+  # (with effective batch size 16), providing dense loss-curve visibility.
+  logging_steps: 10
+
+  # Checkpoint saving cadence.  "epoch" saves one checkpoint at the end of
+  # each epoch, enabling rollback to the best intermediate model.
+  save_strategy: "epoch"
+
+  # Evaluation cadence on the held-out eval split.  Must align with
+  # save_strategy so that load_best_model_at_end can compare checkpoints.
+  evaluation_strategy: "epoch"
+
+  # Restore the checkpoint with the best metric_for_best_model score at the
+  # end of training, rather than using the final epoch's weights.
+  load_best_model_at_end: true
+
+  # Metric used to rank checkpoints for best-model selection.
+  # eval_loss is the default and most reliable signal for SFT convergence.
+  # Switch to a domain-specific metric (e.g. counterexample_success_rate) once
+  # a custom compute_metrics function is wired into the trainer.
+  metric_for_best_model: "eval_loss"
+
+  # Experiment tracking backend for loss curves and hyperparameter logging.
+  # "none"       — no external tracking (CI / offline runs)
+  # "wandb"      — Weights & Biases (requires WANDB_API_KEY env var)
+  # "tensorboard"— TensorBoard (local inspection via tensorboard --logdir)
+  report_to: "none"
+
+# ===========================================================================
+# data — dataset loading and split parameters
+# ===========================================================================
+data:
+  # Fraction of shuffled records allocated to the training split.
+  # 0.8 = 80 % train / 20 % eval, a standard default for supervised fine-tuning.
+  train_split: 0.8
+
+  # Complementary eval fraction (informational — computed as 1 - train_split).
+  # finetune_lora.py derives the eval slice automatically; this field documents
+  # the intended split for reproducibility records.
+  eval_split: 0.2
+
+  # Hard cap on the number of training records loaded from the JSONL file.
+  # null = load all available records.  Set to an integer (e.g. 1000) for fast
+  # smoke tests without modifying the training script.
+  max_samples: null
+
+  # Integer seed applied to the dataset shuffle, Python random, NumPy, and
+  # PyTorch before training begins.  Change only when running ablation sweeps
+  # across different data orderings.
+  seed: 42
+
+# ===========================================================================
+# output — checkpoint storage and Hub publishing
+# ===========================================================================
+output:
+  # Directory where PEFT adapter weights, tokenizer files, and trainer state
+  # are persisted.  Created automatically if absent.  Can be overridden at
+  # runtime via the --output CLI flag in finetune_lora.py.
+  output_dir: "models/refuter_lora_v1"
+
+  # Maximum number of intermediate checkpoints retained on disk simultaneously.
+  # Older checkpoints are deleted (oldest-first) once this limit is reached,
+  # keeping storage consumption bounded.  The best checkpoint (by eval_loss)
+  # is always preserved regardless of this limit.
+  save_total_limit: 3
+
+  # Push the final LoRA adapter to the HuggingFace Hub after training completes.
+  # Requires a valid HF_TOKEN environment variable.  Set to true only for
+  # official release checkpoints; keep false for development runs.
+  push_to_hub: false

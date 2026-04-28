@@ -1,9 +1,9 @@
 """
-Shared type definitions for the ConjLean pipeline.
+Shared type definitions for the ConjLean / REFUTE pipeline.
 
 All dataclasses and enums used across conjecture generation, filtering,
-formalization, and proof search stages are centralized here to enforce a
-single source of truth and enable clean dependency graphs between modules.
+formalization, proof search, counterexample generation, conjecture refinement,
+benchmark management, and fine-tuning data preparation are centralized here.
 """
 
 from __future__ import annotations
@@ -204,3 +204,192 @@ class PipelineResult:
     formalization: Optional[FormalizedConjecture] = None
     proof: Optional[ProofResult] = None
     final_status: PipelineStatus = PipelineStatus.FILTERED_OUT
+
+
+# ===========================================================================
+# REFUTE — Counterexample-guided conjecture refinement types
+# ===========================================================================
+
+
+class RefuterStrategy(str, Enum):
+    """Strategy used by the R-Agent to generate counterexample candidates."""
+
+    BOUNDARY = "boundary"
+    RANDOM_STRUCTURED = "random_structured"
+    ANALOGICAL = "analogical"
+    SYMBOLIC_PERTURBATION = "symbolic_perturbation"
+
+
+class CounterexampleStatus(str, Enum):
+    """Verification outcome of a counterexample candidate."""
+
+    CONFIRMED = "confirmed"
+    NOT_CONFIRMED = "not_confirmed"
+    UNCERTAIN = "uncertain"
+
+
+class RefuteLoopStatus(str, Enum):
+    """Terminal status of a full REFUTE loop run on a single conjecture."""
+
+    REFUTED = "refuted"           # Confirmed counterexample found
+    REFINED = "refined"           # Counterexample found + conjecture refined
+    SURVIVED = "survived"         # No counterexample found after all rounds
+    BUDGET_EXHAUSTED = "budget_exhausted"  # Stopped due to compute limit
+
+
+class BenchmarkTier(str, Enum):
+    """Tier classification of a benchmark conjecture."""
+
+    TIER1_SYNTHETIC = "tier1_synthetic"   # Known theorems with removed conditions
+    TIER2_HISTORICAL = "tier2_historical" # Historical conjectures with known status
+    TIER3_SUBTLE = "tier3_subtle"         # Subtle / imprecise published statements
+
+
+class TrainingSampleSource(str, Enum):
+    """Source of a training sample for fine-tuning."""
+
+    FRONTIER_GENERATED = "frontier_generated"
+    BENCHMARK_VERIFIED = "benchmark_verified"
+    AUGMENTED = "augmented"
+
+
+@dataclass
+class CounterexampleCandidate:
+    """
+    A single candidate counterexample proposed by the R-Agent.
+
+    Attributes:
+        conjecture_id: ID of the conjecture this candidate targets.
+        candidate_str: Human-readable counterexample description
+            (e.g., ``"n=4: 4^2 - 4 = 12, not divisible by 6"``).
+        strategy: The R-Agent strategy that generated this candidate.
+        status: Verification outcome from the V-Agent.
+        evidence: Supporting numerical evidence from verification.
+        reasoning: R-Agent reasoning trace that led to this candidate.
+    """
+
+    conjecture_id: str
+    candidate_str: str
+    strategy: RefuterStrategy
+    status: CounterexampleStatus = CounterexampleStatus.UNCERTAIN
+    evidence: dict = field(default_factory=dict)
+    reasoning: str = ""
+
+
+@dataclass
+class RefuterResult:
+    """
+    Aggregate result of the R-Agent on one conjecture.
+
+    Attributes:
+        conjecture: The conjecture that was attempted.
+        candidates: All counterexample candidates explored (ordered by try).
+        best_counterexample: The confirmed counterexample if found, else None.
+        strategy_used: Strategy that produced the confirmed counterexample.
+        rounds: Total number of candidate generation rounds consumed.
+        strategy_scores: Per-strategy success counts for S-Agent learning.
+    """
+
+    conjecture: Conjecture
+    candidates: list[CounterexampleCandidate] = field(default_factory=list)
+    best_counterexample: Optional[CounterexampleCandidate] = None
+    strategy_used: Optional[RefuterStrategy] = None
+    rounds: int = 0
+    strategy_scores: dict = field(default_factory=dict)
+
+
+@dataclass
+class ConjectureRefinement:
+    """
+    A C-Agent refinement of a conjecture after a counterexample is found.
+
+    Attributes:
+        original: The conjecture before refinement.
+        refined_statement: Updated natural-language statement (e.g., conditions added).
+        counterexample_that_prompted: The counterexample that triggered refinement.
+        refinement_type: Taxonomy of the change (``"added_condition"``,
+            ``"narrowed_domain"``, ``"strengthened_hypothesis"``, ``"other"``).
+        model: LLM used for refinement.
+    """
+
+    original: Conjecture
+    refined_statement: str
+    counterexample_that_prompted: CounterexampleCandidate
+    refinement_type: str = "added_condition"
+    model: str = ""
+
+
+@dataclass
+class RefuteLoopResult:
+    """
+    Full trajectory of one REFUTE loop run on a single conjecture.
+
+    Attributes:
+        original_conjecture: Starting conjecture.
+        status: Terminal status of the run.
+        refuter_results: Per-round R-Agent results.
+        refinements: Sequence of C-Agent refinements (empty if not refined).
+        final_conjecture: The conjecture after all refinements (same as original
+            if never refined).
+        total_rounds: Total rounds consumed across all R-Agent calls.
+        confirmed_counterexample: The best confirmed counterexample found.
+    """
+
+    original_conjecture: Conjecture
+    status: RefuteLoopStatus = RefuteLoopStatus.SURVIVED
+    refuter_results: list[RefuterResult] = field(default_factory=list)
+    refinements: list[ConjectureRefinement] = field(default_factory=list)
+    final_conjecture: Optional[Conjecture] = None
+    total_rounds: int = 0
+    confirmed_counterexample: Optional[CounterexampleCandidate] = None
+
+
+@dataclass
+class BenchmarkEntry:
+    """
+    A single entry in the REFUTE 3-tier benchmark.
+
+    Attributes:
+        id: Unique benchmark entry ID.
+        conjecture: The conjecture to refute.
+        tier: Tier classification.
+        ground_truth_counterexample: Known counterexample string (for Tier 1 & 2).
+        ground_truth_status: Whether the conjecture is known to be false/open.
+        source: Human-readable source description (e.g., ``"ProofWiki"``).
+        notes: Any relevant annotation or context.
+    """
+
+    id: str
+    conjecture: Conjecture
+    tier: BenchmarkTier
+    ground_truth_counterexample: Optional[str] = None
+    ground_truth_status: str = "false"  # "false", "open", "true_with_caveat"
+    source: str = ""
+    notes: str = ""
+
+
+@dataclass
+class TrainingSample:
+    """
+    A single training sample for fine-tuning the R-Agent (DeepSeek-Math-7B).
+
+    Format follows the supervised fine-tuning schema:
+    ``input = conjecture + strategy`` → ``output = reasoning + counterexample``
+
+    Attributes:
+        conjecture_nl: Natural-language conjecture statement.
+        strategy: R-Agent strategy this sample trains.
+        reasoning_trace: Step-by-step reasoning leading to the counterexample.
+        counterexample: The confirmed counterexample string.
+        verification_evidence: SymPy/SageMath verification output.
+        domain: Mathematical domain.
+        source: How this sample was created.
+    """
+
+    conjecture_nl: str
+    strategy: RefuterStrategy
+    reasoning_trace: str
+    counterexample: str
+    verification_evidence: dict = field(default_factory=dict)
+    domain: str = "number_theory"
+    source: TrainingSampleSource = TrainingSampleSource.FRONTIER_GENERATED

@@ -1,48 +1,94 @@
-# ConjLean
+# ConjLean / REFUTE
 
-**Automated mathematical conjecture generation and formal verification using LLMs + Lean 4.**
+**Two systems. One goal: automated mathematics.**
 
-ConjLean is an end-to-end pipeline that:
-1. **Generates** mathematical conjectures using an LLM
-2. **Filters** them with SymPy (fast CPU pre-check)
-3. **Formalizes** natural-language statements into Lean 4 with an error-repair loop
-4. **Proves** them with a 4-layer tactic waterfall + LLM-guided proof search
-
-All verified proofs are formally checked by Lean 4 / Mathlib — no human mathematician required.
+> **ICML AI4Research 2026 submission** — *REFUTE: Property-Based Testing for Mathematics via Multi-Agent Counterexample Search*
 
 ---
 
-## Architecture
+## Systems at a Glance
 
-```
-LLM  →  SymPy filter  →  Lean 4 autoformalization  →  4-layer proof search
-  Generate          Pre-check           NL → Lean4               Verify
-  conjectures       (5 s, CPU)          (repair loop)            Layer 0: auto tactics
-                                                                 Layer 1: tactic combos
-                                                                 Layer 2: exact?/apply?
-                                                                 Layer 3: LLM + Lean REPL
-```
+| System | What it does |
+|--------|-------------|
+| **ConjLean** | Generate → SymPy-filter → Lean 4 formalize → 4-layer proof search |
+| **REFUTE** | Load conjecture → R-Agent searches for counterexamples → V-Agent verifies → C-Agent refines → S-Agent orchestrates |
 
-**Domains**: Number theory, inequalities (where `omega`, `norm_num`, `nlinarith`, `positivity` are strong).
+ConjLean tries to **prove** conjectures. REFUTE tries to **refute** them — finding the counterexamples that show where a conjecture breaks down. Both pipelines share the same LLM backend, config, and schemas.
 
 ---
 
-## Supported Providers
+## REFUTE Architecture
 
-| Provider | Config key | Notes |
-|---|---|---|
-| Anthropic | `anthropic` | Claude Sonnet / Opus |
-| OpenAI | `openai` | GPT-4o, o1, etc. |
-| Google Gemini | `gemini` | Gemini 1.5 Pro |
-| HuggingFace API | `huggingface` | Inference API, no GPU needed |
-| vLLM | `vllm` | Self-hosted OpenAI-compatible server |
-| Local HF | `local_hf` | Direct `transformers` inference, best for Lambda Labs |
+```
+                 ┌──────────────────────────────────────────┐
+                 │              REFUTE Loop                  │
+                 │                                           │
+  Conjecture ──► │  S-Agent (UCB1 meta-controller)          │
+                 │      │                                    │
+                 │      ▼                                    │
+                 │  R-Agent  ──── 4 strategies ────►  CE?   │
+                 │  (Refuter)   BOUNDARY                │    │
+                 │              RANDOM_STRUCTURED        │    │
+                 │              ANALOGICAL               │    │
+                 │              SYMBOLIC_PERTURBATION    │    │
+                 │                                       │    │
+                 │      V-Agent (SymPy verifier) ◄───────┘    │
+                 │      │  confirmed?                         │
+                 │      ▼  yes                                │
+                 │  C-Agent (Conjecturer/refiner)             │
+                 │      │  tightens hypothesis               │
+                 │      └──► refined conjecture ──► repeat   │
+                 │                                           │
+                 │  Terminal states: REFUTED · REFINED       │
+                 │                   SURVIVED · BUDGET_EXHAUSTED
+                 └──────────────────────────────────────────┘
+```
+
+**R-Agent strategies**
+
+| Strategy | Description | LLM? |
+|----------|-------------|------|
+| `BOUNDARY` | Deterministic sweep of edge-case integers / extremes | No |
+| `RANDOM_STRUCTURED` | Primes, squares, Fibonacci, factorials | No |
+| `ANALOGICAL` | LLM proposes candidates based on past counterexamples | Yes |
+| `SYMBOLIC_PERTURBATION` | LLM identifies critical parameters and perturbs | Yes |
+
+**S-Agent (Strategist) selection cascade:** BOUNDARY first → domain win-rate check → LLM if stats sparse → UCB1 exploitation/exploration balance.
+
+---
+
+## ConjLean Architecture
+
+```
+LLM  ──►  SymPy filter  ──►  Lean 4 autoformalization  ──►  4-layer proof search
+Generate   Pre-check          NL → Lean4                     Layer 0: omega/norm_num/decide
+           (CPU, ~5 s)        (error-repair loop)            Layer 1: induction combos
+                                                             Layer 2: exact?/apply? search
+                                                             Layer 3: LLM + Lean REPL
+```
+
+---
+
+## REFUTE Benchmark
+
+The 3-tier benchmark is built from `scripts/build_benchmark.py` and lives in `data/benchmark/`.
+
+| Tier | Description | Entries |
+|------|-------------|---------|
+| **Tier 1** Synthetic | Known-true theorems with one condition removed | 59 |
+| **Tier 2** Historical | Published conjectures with known counterexamples | 23 |
+| **Tier 3** Subtle | Edge cases, imprecise statements, open questions | 10 |
+| **Total** | | **92** |
+
+- 73/92 entries (79.3 %) have verified ground-truth counterexamples
+- Domains: number theory (69), inequality (13), combinatorics (10)
+- Tier 2 includes: Euler sum-of-powers, Fermat primes, Mertens conjecture, Goldbach variants, Beal, Pólya, Legendre, twin primes, abc conjecture, and more
 
 ---
 
 ## Quick Start
 
-### 1. Clone and install
+### Install
 
 ```bash
 git clone <repo-url>
@@ -50,38 +96,45 @@ cd conjlean
 pip install -e ".[dev]"
 ```
 
-### 2. Configure
+### Configure
 
 ```bash
 cp .env.example .env
-# Edit .env with your API key (only the provider you plan to use)
+# Set your API key — only the provider you plan to use
+# ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or HF_TOKEN
 ```
 
-### 3. Build Lean / Mathlib (first time only, ~30 min)
+### Validate setup
 
 ```bash
-# Install elan (Lean version manager)
-curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | bash -s -- -y
-
-export PATH="$HOME/.elan/bin:$PATH"
-cd lean && lake build && cd ..
+make check    # 13-point environment validator
+make smoke    # mock pipeline end-to-end test
 ```
 
-### 4. Validate setup
+### Run REFUTE on the benchmark
 
 ```bash
-make check
-make smoke
+# Build the 3-tier benchmark dataset first
+make build-benchmark
+
+# Run REFUTE (uses provider from configs/config.yaml)
+make refute-benchmark
+
+# Evaluate results
+make evaluate-refute
 ```
 
-### 5. Run the pipeline
+### Run ConjLean proof pipeline
 
 ```bash
-# Default (Anthropic, 100 conjectures per domain)
+# Build Lean + Mathlib (first time, ~30 min)
+make lean
+
+# Run with Anthropic (default)
 python3 run.py run --config configs/config.yaml \
     --domains number_theory inequality --n-per-domain 100
 
-# Evaluate results
+# Evaluate
 python3 run.py evaluate --results-dir data/results
 ```
 
@@ -89,91 +142,67 @@ python3 run.py evaluate --results-dir data/results
 
 ## Lambda Labs Setup
 
-This is designed to run efficiently on [Lambda Labs](https://lambdalabs.com) GPU instances.
-
 ### One-command setup
 
 ```bash
-# SSH into your Lambda instance, then:
 git clone <repo-url> conjlean && cd conjlean
 bash scripts/setup_lambda.sh
 ```
 
-The setup script handles: system packages, Python deps, Lean 4 + Mathlib build, and validation.
+Handles: system packages, Python deps, Lean 4 + Mathlib, validation.
 
-### Option A: 7B model (single A100, no API key)
+### Inference (ConjLean / REFUTE)
 
-Works on any Lambda Labs A100 instance (40 GB or 80 GB).
-
-```bash
-make run-small
-# or
-python3 run.py run --config configs/config_lambda_7b.yaml \
-    --domains number_theory inequality --n-per-domain 100
-```
-
-### Option B: 72B model via vLLM (2× A100 SXM4 80 GB)
+| Setup | VRAM | Instance | Config |
+|-------|------|----------|--------|
+| 7B model (local HF) | 16 GB | 1× A100 40 GB | `config_lambda_7b.yaml` |
+| 32B via vLLM | 80 GB | 1× A100 80 GB | vllm, port 8000 |
+| 72B via vLLM | 160 GB | 2× A100 80 GB | `config_lambda_72b.yaml` |
 
 ```bash
-# Terminal 1 — start vLLM server
+# 7B model, single A100 — run REFUTE
+python3 run.py refute \
+    --config configs/config_lambda_7b.yaml \
+    --benchmark-dir data/benchmark \
+    --output data/refute_results_7b
+
+# 72B via vLLM — start server first
 bash scripts/start_vllm_lambda.sh Qwen/Qwen2.5-Math-72B-Instruct
-
-# Terminal 2 — run pipeline (after server prints "Application startup complete")
-make run-72b
+make refute-72b   # (after server prints "Application startup complete")
 ```
 
-### Recommended Lambda instances
+### R-Agent Fine-tuning (DeepSeek-Math-7B via LoRA)
 
-| Model | VRAM | Instance | Config |
-|---|---|---|---|
-| Qwen2.5-Math-7B-Instruct | 16 GB | 1× A100 SXM4 40GB | `config_lambda_7b.yaml` |
-| Qwen/QwQ-32B | 80 GB | 1× A100 SXM4 80GB | vllm, port 8000 |
-| Qwen2.5-Math-72B-Instruct | 160 GB | 2× A100 SXM4 80GB | `config_lambda_72b.yaml` |
-
-### Use tmux on Lambda
-
-Always run long jobs in tmux so they survive SSH disconnects:
+Trains the R-Agent on (conjecture, strategy) → (reasoning, counterexample) triples.
+Requires a frontier LLM API key for data generation.
 
 ```bash
-tmux new -s conjlean
-# ... run your commands ...
-# Detach: Ctrl+B, D
-# Reattach: tmux attach -t conjlean
+# Step 1 — generate supervised fine-tuning data from the benchmark
+make gen-training-data   # needs ANTHROPIC_API_KEY (or equivalent)
+# Output: data/training/samples.jsonl  (~3–5 traces × 73 CE entries)
+
+# Step 2 — fine-tune on A100 (LoRA, rank 32, 4-bit quant)
+make finetune-refuter
+# Output: models/refuter_lora_v1/
+
+# Step 3 — evaluate the fine-tuned R-Agent
+python3 scripts/finetune_lora.py \
+    --config configs/finetune_config.yaml \
+    --data data/training/samples.jsonl \
+    --output models/refuter_lora_v1 \
+    --eval-only
 ```
 
----
+**Fine-tuning config** (`configs/finetune_config.yaml`):
+- Base model: `deepseek-ai/DeepSeek-Math-7B-Instruct`
+- LoRA: rank 32, alpha 64, all attention + FFN projections
+- Training: 3 epochs, LR 2e-4, cosine schedule, bf16
+- Hardware: single A100 40 GB (4-bit), or A100 80 GB (full bf16)
 
-## Project Structure
-
-```
-conjlean/
-├── src/                        # Core pipeline modules
-│   ├── config.py               # Pydantic v2 config (all settings)
-│   ├── schemas.py              # Shared dataclasses and enums
-│   ├── models.py               # LLM client abstraction (all providers)
-│   ├── sympy_filter.py         # Fast SymPy pre-checker
-│   ├── formalizer.py           # NL → Lean 4 with error-repair loop
-│   ├── lean_harness.py         # Lean 4 REPL subprocess wrapper
-│   ├── proof_search.py         # 4-layer proof search
-│   ├── pipeline.py             # End-to-end orchestration
-│   └── evaluate.py             # Metrics and evaluation report
-├── lean/                       # Lean 4 project (Mathlib)
-│   ├── lakefile.toml
-│   └── ConjLean/Basic.lean
-├── configs/
-│   ├── config.yaml             # Default config (Anthropic)
-│   ├── config_lambda_7b.yaml   # Lambda Labs, single A100, 7B
-│   └── config_lambda_72b.yaml  # Lambda Labs, 2× A100 80G, 72B vLLM
-├── tests/                      # 209 unit tests (pytest)
-├── scripts/
-│   ├── setup_lambda.sh         # One-shot Lambda Labs setup
-│   ├── start_vllm_lambda.sh    # Start vLLM server for 32B/72B models
-│   ├── check_setup.py          # 13-point environment validator
-│   └── run_smoke_test.py       # Full mock pipeline test
-├── run.py                      # CLI entry point
-├── setup.py                    # Package definition
-├── Makefile                    # Common targets
-└── .env.example                # API key template
+Always use tmux on Lambda:
+```bash
+tmux new -s refute
+# Detach: Ctrl+B D  |  Reattach: tmux attach -t refute
 ```
 
 ---
@@ -181,17 +210,33 @@ conjlean/
 ## CLI Reference
 
 ```bash
-# Run pipeline
-python3 run.py run --config configs/config.yaml \
+# ConjLean — prove conjectures
+python3 run.py run \
+    --config configs/config.yaml \
     --domains number_theory inequality \
     --n-per-domain 100
 
-# Evaluate results
+# ConjLean — evaluate results
 python3 run.py evaluate --results-dir data/results
 
-# Formalize a single statement
-python3 run.py formalize --config configs/config.yaml \
+# ConjLean — formalize a single statement
+python3 run.py formalize \
+    --config configs/config.yaml \
     --statement "For all n, n*(n+1) is even"
+
+# REFUTE — find counterexamples
+python3 run.py refute \
+    --config configs/config.yaml \
+    --benchmark-dir data/benchmark \
+    --output data/refute_results \
+    --max-rounds 8 \
+    --max-refinements 3 \
+    --max-concurrent 5
+
+# REFUTE — evaluate results
+python3 run.py refute-evaluate \
+    --results data/refute_results/loop_results.jsonl \
+    --benchmark data/benchmark/all.jsonl
 
 # List available providers
 python3 run.py list-providers
@@ -199,34 +244,147 @@ python3 run.py list-providers
 
 ---
 
-## Makefile Targets
+## Makefile Reference
+
+### Setup
 
 | Target | Description |
-|---|---|
+|--------|-------------|
 | `make install` | `pip install -e ".[dev]"` |
-| `make install-lambda` | Install with local_hf extras |
-| `make test` | Run all 209 tests |
-| `make check` | 13-point setup validation |
-| `make smoke` | Mock pipeline smoke test |
-| `make lean` | Build Lean + Mathlib |
-| `make run-small` | 50 conjectures per domain (7B) |
-| `make run-7b` | 200 conjectures per domain (7B) |
-| `make run-72b` | 200 conjectures per domain (72B vLLM) |
-| `make evaluate` | Evaluate latest results |
-| `make clean` | Remove build artifacts |
+| `make install-lambda` | Install with `local_hf` extras for Lambda Labs |
+| `make lean` | Build Lean 4 + Mathlib |
+| `make lean-update` | `lake update && lake build` |
+
+### Quality
+
+| Target | Description |
+|--------|-------------|
+| `make test` | Run all 225 tests |
+| `make check` | 13-point environment validation |
+| `make smoke` | End-to-end mock pipeline test |
+| `make lint` | `ruff check` |
+| `make fmt` | `ruff format` |
+
+### ConjLean Pipeline
+
+| Target | Description |
+|--------|-------------|
+| `make run-small` | 50 conjectures/domain, 7B model |
+| `make run-7b` | 200 conjectures/domain, 7B model |
+| `make run-72b` | 200 conjectures/domain, 72B via vLLM |
+| `make evaluate` | Evaluate latest results in `data/results` |
+
+### REFUTE Pipeline
+
+| Target | Description |
+|--------|-------------|
+| `make build-benchmark` | Build all 3 tiers → `data/benchmark/` |
+| `make gen-training-data` | Generate LoRA SFT data (needs API key) |
+| `make finetune-refuter` | Fine-tune DeepSeek-Math-7B via LoRA |
+| `make refute-benchmark` | Run REFUTE on full benchmark |
+| `make refute-7b` | Run REFUTE with fine-tuned 7B model |
+| `make evaluate-refute` | Evaluate REFUTE results |
+
+---
+
+## Project Structure
+
+```
+conjlean/
+├── src/                              # Core library (importable as `conjlean`)
+│   ├── schemas.py                    # All dataclasses and enums (shared)
+│   ├── config.py                     # Pydantic v2 config (all settings)
+│   ├── models.py                     # LLM client abstraction (6 providers)
+│   │
+│   ├── # ConjLean — proof pipeline
+│   ├── conjecture_gen.py             # LLM conjecture generation
+│   ├── sympy_filter.py               # Fast SymPy pre-checker
+│   ├── formalizer.py                 # NL → Lean 4 with error-repair loop
+│   ├── lean_harness.py               # Lean 4 REPL subprocess wrapper
+│   ├── proof_search.py               # 4-layer tactic proof search
+│   ├── pipeline.py                   # ConjLean end-to-end orchestration
+│   ├── evaluate.py                   # ConjLean metrics and report
+│   │
+│   └── # REFUTE — counterexample pipeline
+│       ├── refuter.py                # R-Agent: 4 counterexample strategies
+│       ├── strategist.py             # S-Agent: UCB1 meta-controller
+│       ├── refute_loop.py            # Full REFUTE loop orchestration
+│       ├── benchmark.py              # 3-tier benchmark builder + loader
+│       └── refute_evaluate.py        # REFUTE metrics, LaTeX table export
+│
+├── scripts/
+│   ├── build_benchmark.py            # CLI: build data/benchmark/
+│   ├── gen_training_data.py          # CLI: generate LoRA SFT data
+│   ├── finetune_lora.py              # CLI: fine-tune DeepSeek-Math-7B
+│   ├── check_setup.py                # 13-point environment validator
+│   ├── run_smoke_test.py             # Mock pipeline smoke test
+│   ├── setup_lambda.sh               # One-shot Lambda Labs setup
+│   └── start_vllm_lambda.sh          # Start vLLM server (32B/72B)
+│
+├── configs/
+│   ├── config.yaml                   # Default (Anthropic Claude)
+│   ├── config_lambda_7b.yaml         # Lambda Labs, 1× A100, 7B local HF
+│   ├── config_lambda_72b.yaml        # Lambda Labs, 2× A100, 72B vLLM
+│   └── finetune_config.yaml          # LoRA fine-tuning (DeepSeek-Math-7B)
+│
+├── lean/                             # Lean 4 project (Mathlib dependency)
+│   ├── lakefile.toml
+│   └── ConjLean/Basic.lean
+│
+├── tests/                            # 225 pytest tests
+│   ├── test_refuter.py               # R-Agent unit tests
+│   ├── test_refute_loop.py           # REFUTE loop unit tests
+│   ├── test_schemas.py
+│   ├── test_config.py
+│   ├── test_models.py
+│   ├── test_pipeline.py
+│   ├── test_formalizer.py
+│   ├── test_lean_harness.py
+│   ├── test_proof_search.py
+│   └── test_sympy_filter.py
+│
+├── data/
+│   ├── benchmark/                    # Generated by make build-benchmark
+│   │   ├── tier1.jsonl               # 59 synthetic falsehoods
+│   │   ├── tier2.jsonl               # 23 historical conjectures
+│   │   ├── tier3.jsonl               # 10 subtle / open cases
+│   │   └── all.jsonl                 # All 92 entries combined
+│   ├── training/                     # Generated by make gen-training-data
+│   └── results/                      # Generated by pipeline runs
+│
+├── models/                           # Fine-tuned LoRA adapters (gitignored)
+├── run.py                            # CLI entry point
+├── setup.py                          # Package definition
+├── Makefile
+└── .env.example
+```
+
+---
+
+## Supported LLM Providers
+
+| Provider | Config key | Typical model |
+|----------|-----------|---------------|
+| Anthropic | `anthropic` | `claude-sonnet-4-6` |
+| OpenAI | `openai` | `gpt-4o`, `o1` |
+| Google Gemini | `gemini` | `gemini-1.5-pro` |
+| HuggingFace API | `huggingface` | Inference API, no GPU |
+| vLLM | `vllm` | Any GGUF/HF model, self-hosted |
+| Local HF | `local_hf` | Direct `transformers`, Lambda Labs |
 
 ---
 
 ## Paper
 
-This pipeline is being used for a paper submission to **AI4Research @ ICML 2026**.
+**REFUTE: Property-Based Testing for Mathematics via Multi-Agent Counterexample Search**
+ICML AI4Research Workshop 2026
 
-**Framing**: ML systems paper — we characterize what a no-fine-tuning LLM + Lean 4 pipeline
-can automatically discover and verify, and analyze where it succeeds and fails.
-Lean is the mathematician. No human verification required.
+**Framing**: We reframe automated mathematical reasoning as a *property-based testing* problem. Instead of asking "can we prove this?", we ask "can we find a value that breaks it?". The REFUTE system uses a 4-agent loop to systematically search for counterexamples, refine conjectures when counterexamples are found, and learn which search strategies work best per domain.
 
-**Claims**:
-- System description and design decisions
-- Empirical characterization across number theory and inequality domains
-- Failure mode analysis (formalization errors, proof layer breakdown)
-- Comparison across model sizes (7B vs 72B)
+**Key contributions**:
+1. **REFUTE loop** — C/R/V/S agent architecture with UCB1-guided strategy selection
+2. **3-tier benchmark** — 92 curated conjectures (synthetic, historical, subtle) with verified ground-truth
+3. **LoRA R-Agent** — DeepSeek-Math-7B fine-tuned on frontier-generated reasoning traces
+4. **Empirical evaluation** — precision/recall/F1 breakdowns by tier, domain, and strategy; ablation over each agent component
+
+**Baseline comparison**: API-only (Claude Sonnet, no fine-tuning) vs. LoRA R-Agent (7B, ~5k training triples from benchmark).
