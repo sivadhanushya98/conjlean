@@ -1,4 +1,4 @@
-.PHONY: install test lean smoke check run-small run-full clean fmt lint
+.PHONY: install test lean smoke check run-small run-full clean fmt lint run-experiments-pipeline run-experiments-refute
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 install:
@@ -131,6 +131,33 @@ multi-seed-refute:
 		--n-seeds 5 \
 		--base-seed 0 \
 		--output data/results/multi_seed_refute
+
+# ── Multi-run experiment launcher ────────────────────────────────────────────
+# Execute N independent pipeline runs and aggregate results.
+# Override: N_SEEDS, BASE_SEED, DOMAINS, N_PER_DOMAIN, OUTPUT_DIR, PROVIDER
+run-experiments-pipeline:
+	python3 scripts/run_experiments.py \
+		--type pipeline \
+		--config configs/config.yaml \
+		--domains $(or $(DOMAINS),number_theory inequality) \
+		--n-per-domain $(or $(N_PER_DOMAIN),100) \
+		--n-seeds $(or $(N_SEEDS),5) \
+		--base-seed $(or $(BASE_SEED),0) \
+		--output-dir $(or $(OUTPUT_DIR),data/experiments/pipeline_v1) \
+		$(if $(PROVIDER),--provider $(PROVIDER),)
+
+# Execute N independent REFUTE runs and aggregate results.
+# Override: N_SEEDS, BASE_SEED, BENCHMARK_DIR, OUTPUT_DIR, MAX_ROUNDS, PROVIDER
+run-experiments-refute:
+	python3 scripts/run_experiments.py \
+		--type refute \
+		--config configs/config.yaml \
+		--benchmark-dir $(or $(BENCHMARK_DIR),data/benchmark) \
+		--n-seeds $(or $(N_SEEDS),5) \
+		--base-seed $(or $(BASE_SEED),0) \
+		--output-dir $(or $(OUTPUT_DIR),data/experiments/refute_v1) \
+		--max-rounds $(or $(MAX_ROUNDS),8) \
+		$(if $(PROVIDER),--provider $(PROVIDER),)
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 list-providers:
