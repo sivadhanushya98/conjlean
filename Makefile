@@ -109,6 +109,29 @@ evaluate-refute:
 		--results data/refute_results/loop_results.jsonl \
 		--benchmark data/benchmark/all.jsonl
 
+# ── Multi-seed experiment aggregation ────────────────────────────────────────
+
+# Aggregate N pipeline result JSONL files into CSV + markdown summary.
+# Usage: make multi-seed-pipeline RESULT_FILES="data/results/s0/results.jsonl ..."
+multi-seed-pipeline:
+	python3 scripts/run_multi_seed_aggregate.py \
+		--type pipeline \
+		--result-files $(RESULT_FILES) \
+		--n-seeds 5 \
+		--base-seed 0 \
+		--output data/results/multi_seed_pipeline
+
+# Aggregate N REFUTE loop result JSONL files.
+# Usage: make multi-seed-refute RESULT_FILES="data/refute_results/s*/loop_results.jsonl"
+multi-seed-refute:
+	python3 scripts/run_multi_seed_aggregate.py \
+		--type refute \
+		--result-files $(RESULT_FILES) \
+		--benchmark-dir data/benchmark \
+		--n-seeds 5 \
+		--base-seed 0 \
+		--output data/results/multi_seed_refute
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 list-providers:
 	python3 run.py list-providers
