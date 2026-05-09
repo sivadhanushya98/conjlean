@@ -90,6 +90,15 @@ async def _cmd_refute(args: argparse.Namespace) -> None:
     _configure_logging(config.output.log_level)
     logger = logging.getLogger(__name__)
 
+    if args.seed is not None:
+        import random as _random
+        _random.seed(args.seed)
+        logger.info(
+            "Seed %d applied to stdlib random (LLM outputs and Refuter "
+            "RANDOM_STRUCTURED remain non-deterministic).",
+            args.seed,
+        )
+
     client = create_client(config)
     refuter = Refuter(client=client, config=config)
     strategist = Strategist(client=client, config=config)
@@ -332,6 +341,15 @@ async def _cmd_run(args: argparse.Namespace) -> None:
 
     _configure_logging(config.output.log_level)
     logger = logging.getLogger(__name__)
+
+    if args.seed is not None:
+        import random as _random
+        _random.seed(args.seed)
+        logger.info(
+            "Seed %d applied to stdlib random (affects non-LLM components only; "
+            "LLM outputs and Refuter RANDOM_STRUCTURED remain non-deterministic).",
+            args.seed,
+        )
 
     domains: list[Domain] = (
         [Domain(d) for d in args.domains]
@@ -699,6 +717,19 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="Override the output directory from the config file.",
     )
+    run_parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Integer seed applied to Python's stdlib random module.  "
+            "Labels this run for multi-seed aggregation and weakly controls "
+            "non-LLM random components (e.g. SymPy filter sampling).  "
+            "LLM outputs and the Refuter's structured-random strategy remain "
+            "non-deterministic regardless of this flag."
+        ),
+    )
 
     # ── evaluate ────────────────────────────────────────────────────────
     eval_parser = subparsers.add_parser(
@@ -762,6 +793,18 @@ def _build_parser() -> argparse.ArgumentParser:
     refute_parser.add_argument("--max-rounds", type=int, default=10, metavar="N")
     refute_parser.add_argument("--max-refinements", type=int, default=3, metavar="N")
     refute_parser.add_argument("--max-concurrent", type=int, default=4, metavar="N")
+    refute_parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Integer seed applied to Python's stdlib random module.  "
+            "Labels this run for multi-seed aggregation.  "
+            "LLM outputs and the Refuter's structured-random strategy remain "
+            "non-deterministic regardless of this flag."
+        ),
+    )
 
     # ── refute-evaluate ─────────────────────────────────────────────────
     re_parser = subparsers.add_parser(
