@@ -68,6 +68,11 @@ build-benchmark:
 		--validate \
 		--output-dir data/benchmark
 
+# Validate all saved benchmark entries with the in-process SympyFilter
+validate-benchmark:
+	python3 scripts/validate_benchmark.py \
+		--benchmark-dir data/benchmark
+
 # Generate LoRA training data (requires ANTHROPIC_API_KEY or similar)
 gen-training-data:
 	python3 scripts/gen_training_data.py \
