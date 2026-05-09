@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import multiprocessing
+import os
 import random
 import re
 import signal
@@ -76,10 +77,12 @@ def _worker_check(task: _CheckTask) -> _CheckResult:
         raise TimeoutError("SymPy evaluation exceeded time limit")
 
     try:
-        signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(_SYMPY_TIMEOUT_SECONDS)
+        if hasattr(signal, "SIGALRM"):
+            signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.alarm(_SYMPY_TIMEOUT_SECONDS)
         result = _dispatch_check(task)
-        signal.alarm(0)
+        if hasattr(signal, "alarm"):
+            signal.alarm(0)
         return result
     except TimeoutError:
         return _CheckResult(
@@ -797,7 +800,7 @@ class SympyFilter:
             n_random_attempts=self.n_random_attempts,
         )
 
-        ctx = multiprocessing.get_context("fork")
+        ctx = multiprocessing.get_context("fork" if hasattr(os, "fork") else "spawn")
         with ctx.Pool(processes=1) as pool:
             async_result = pool.apply_async(_worker_check, (task,))
             try:
