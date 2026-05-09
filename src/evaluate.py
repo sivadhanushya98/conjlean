@@ -38,6 +38,40 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Bootstrap confidence interval
+# ---------------------------------------------------------------------------
+
+_MIN_BOOTSTRAP_N = 5
+_BOOTSTRAP_ITERATIONS = 1000
+
+
+def bootstrap_ci(
+    outcomes: list[bool],
+    *,
+    n_bootstrap: int = _BOOTSTRAP_ITERATIONS,
+    ci_level: float = 0.95,
+    seed: int = 42,
+) -> "tuple[float, float] | None":
+    """Percentile bootstrap CI for a Bernoulli rate.
+
+    Returns ``(lower, upper)`` or ``None`` when ``len(outcomes) < _MIN_BOOTSTRAP_N``.
+    """
+    n = len(outcomes)
+    if n < _MIN_BOOTSTRAP_N:
+        return None
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    arr = np.array(outcomes, dtype=np.float64)
+    idx = rng.integers(0, n, size=(n_bootstrap, n))
+    boot_means = arr[idx].mean(axis=1)
+    alpha = 1.0 - ci_level
+    lo = float(np.percentile(boot_means, 100.0 * alpha / 2.0))
+    hi = float(np.percentile(boot_means, 100.0 * (1.0 - alpha / 2.0)))
+    return (lo, hi)
+
+
+# ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
 
@@ -58,6 +92,8 @@ class StageMetrics:
     success: int
     rate: float
     breakdown: dict[str, int] = field(default_factory=dict)
+    ci_lower: Optional[float] = None
+    ci_upper: Optional[float] = None
 
 
 @dataclass
@@ -108,20 +144,36 @@ class EvaluationReport:
         lines: list[str] = ["# ConjLean Evaluation Report\n"]
 
         # ── Pipeline Stage Summary ──────────────────────────────────────
-        lines.append("## Pipeline Stage Summary\n")
-        lines.append("| Stage | Total | Success | Rate |")
-        lines.append("|---|---|---|---|")
-        for stage_name, metrics in [
+        stage_pairs = [
             ("Generation", self.generation),
             ("Filtering (surviving)", self.filtering),
             ("Formalization (typechecks)", self.formalization),
             ("Proof Search (proved)", self.proof_search),
             ("End-to-End (proved)", self.end_to_end),
-        ]:
-            lines.append(
-                f"| {stage_name} | {metrics.total} | {metrics.success} "
-                f"| {metrics.rate:.1%} |"
-            )
+        ]
+        has_ci = any(m.ci_lower is not None for _, m in stage_pairs)
+        lines.append("## Pipeline Stage Summary\n")
+        if has_ci:
+            lines.append("| Stage | Total | Success | Rate | 95% CI |")
+            lines.append("|---|---|---|---|---|")
+            for stage_name, metrics in stage_pairs:
+                ci_str = (
+                    f"[{metrics.ci_lower:.1%}, {metrics.ci_upper:.1%}]"
+                    if metrics.ci_lower is not None
+                    else "—"
+                )
+                lines.append(
+                    f"| {stage_name} | {metrics.total} | {metrics.success} "
+                    f"| {metrics.rate:.1%} | {ci_str} |"
+                )
+        else:
+            lines.append("| Stage | Total | Success | Rate |")
+            lines.append("|---|---|---|---|")
+            for stage_name, metrics in stage_pairs:
+                lines.append(
+                    f"| {stage_name} | {metrics.total} | {metrics.success} "
+                    f"| {metrics.rate:.1%} |"
+                )
         lines.append("")
 
         # ── Layer Breakdown ─────────────────────────────────────────────
@@ -182,12 +234,16 @@ class EvaluationReport:
             Dictionary representation of the full report.
         """
         def _metrics_to_dict(m: StageMetrics) -> dict:
-            return {
+            d: dict = {
                 "total": m.total,
                 "success": m.success,
                 "rate": round(m.rate, 6),
                 "breakdown": m.breakdown,
             }
+            if m.ci_lower is not None:
+                d["ci_lower"] = round(m.ci_lower, 6)
+                d["ci_upper"] = round(m.ci_upper, 6)
+            return d
 
         return {
             "generation": _metrics_to_dict(self.generation),
@@ -256,11 +312,18 @@ class Evaluator:
             else:
                 filter_breakdown["no_filter_result"] += 1
 
+        filter_outcomes = [
+            r.filter_result is not None and r.filter_result.status is FilterStatus.SURVIVING
+            for r in results
+        ]
+        filter_ci = bootstrap_ci(filter_outcomes)
         filtering_metrics = StageMetrics(
             total=total_in,
             success=n_surviving,
             rate=n_surviving / total_in,
             breakdown=dict(filter_breakdown),
+            ci_lower=filter_ci[0] if filter_ci else None,
+            ci_upper=filter_ci[1] if filter_ci else None,
         )
 
         # ── Formalization metrics ────────────────────────────────────────
@@ -287,11 +350,21 @@ class Evaluator:
             ):
                 formalization_breakdown["not_attempted"] += 1
 
+        form_outcomes = [
+            r.formalization is not None
+            and r.formalization.status is FormalizationStatus.TYPECHECKS
+            for r in results
+            if r.filter_result is not None
+            and r.filter_result.status is FilterStatus.SURVIVING
+        ]
+        form_ci = bootstrap_ci(form_outcomes)
         formalization_metrics = StageMetrics(
             total=max(n_formalized_input, 1),
             success=n_typechecks,
             rate=n_typechecks / max(n_formalized_input, 1),
             breakdown=dict(formalization_breakdown),
+            ci_lower=form_ci[0] if form_ci else None,
+            ci_upper=form_ci[1] if form_ci else None,
         )
         mean_retries = sum(retry_counts) / max(len(retry_counts), 1)
 
@@ -316,11 +389,20 @@ class Evaluator:
             if r.formalization is not None
             and r.formalization.status is FormalizationStatus.TYPECHECKS
         )
+        proof_outcomes = [
+            r.proof is not None and r.proof.status is ProofStatus.PROVED
+            for r in results
+            if r.formalization is not None
+            and r.formalization.status is FormalizationStatus.TYPECHECKS
+        ]
+        proof_ci = bootstrap_ci(proof_outcomes)
         proof_search_metrics = StageMetrics(
             total=max(n_proof_input, 1),
             success=n_proved,
             rate=n_proved / max(n_proof_input, 1),
             breakdown=dict(proof_breakdown),
+            ci_lower=proof_ci[0] if proof_ci else None,
+            ci_upper=proof_ci[1] if proof_ci else None,
         )
         mean_duration = sum(proof_durations) / max(len(proof_durations), 1)
 
@@ -329,11 +411,18 @@ class Evaluator:
         for r in results:
             e2e_breakdown[r.final_status.value] += 1
 
+        e2e_outcomes = [
+            r.proof is not None and r.proof.status is ProofStatus.PROVED
+            for r in results
+        ]
+        e2e_ci = bootstrap_ci(e2e_outcomes)
         end_to_end_metrics = StageMetrics(
             total=total_in,
             success=n_proved,
             rate=n_proved / total_in,
             breakdown=dict(e2e_breakdown),
+            ci_lower=e2e_ci[0] if e2e_ci else None,
+            ci_upper=e2e_ci[1] if e2e_ci else None,
         )
 
         # ── Layer / domain / error breakdowns ────────────────────────────
@@ -528,6 +617,7 @@ class Evaluator:
         stage_table.add_column("Total", justify="right")
         stage_table.add_column("Success", justify="right")
         stage_table.add_column("Rate", justify="right")
+        stage_table.add_column("95% CI", justify="right")
 
         stage_rows = [
             ("Generation", report.generation),
@@ -537,11 +627,17 @@ class Evaluator:
             ("End-to-End", report.end_to_end),
         ]
         for name, m in stage_rows:
+            ci_str = (
+                f"[{m.ci_lower:.1%}, {m.ci_upper:.1%}]"
+                if m.ci_lower is not None
+                else "—"
+            )
             stage_table.add_row(
                 name,
                 str(m.total),
                 str(m.success),
                 f"{m.rate:.1%}",
+                ci_str,
             )
         console.print(stage_table)
 
@@ -596,13 +692,23 @@ class Evaluator:
 
         print("\n=== ConjLean Evaluation Report ===\n")
 
-        headers = ["Stage", "Total", "Success", "Rate"]
+        headers = ["Stage", "Total", "Success", "Rate", "95% CI"]
+        _stage_ms = [
+            ("Generation", report.generation),
+            ("Filtering", report.filtering),
+            ("Formalization", report.formalization),
+            ("Proof Search", report.proof_search),
+            ("End-to-End", report.end_to_end),
+        ]
         rows = [
-            ["Generation", str(report.generation.total), str(report.generation.success), f"{report.generation.rate:.1%}"],
-            ["Filtering", str(report.filtering.total), str(report.filtering.success), f"{report.filtering.rate:.1%}"],
-            ["Formalization", str(report.formalization.total), str(report.formalization.success), f"{report.formalization.rate:.1%}"],
-            ["Proof Search", str(report.proof_search.total), str(report.proof_search.success), f"{report.proof_search.rate:.1%}"],
-            ["End-to-End", str(report.end_to_end.total), str(report.end_to_end.success), f"{report.end_to_end.rate:.1%}"],
+            [
+                name,
+                str(m.total),
+                str(m.success),
+                f"{m.rate:.1%}",
+                (f"[{m.ci_lower:.1%}, {m.ci_upper:.1%}]" if m.ci_lower is not None else "—"),
+            ]
+            for name, m in _stage_ms
         ]
 
         widths = [max(len(h), max(len(r[i]) for r in rows)) for i, h in enumerate(headers)]

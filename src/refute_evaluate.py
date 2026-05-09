@@ -43,6 +43,67 @@ from conjlean.schemas import (
 
 logger = logging.getLogger(__name__)
 
+_BOOTSTRAP_N = 5
+_BOOTSTRAP_ITERATIONS = 1000
+
+
+def _bootstrap_refute_ci(
+    paired: "list[tuple[bool, bool]]",
+    *,
+    n_bootstrap: int = _BOOTSTRAP_ITERATIONS,
+    ci_level: float = 0.95,
+    seed: int = 42,
+) -> "dict[str, tuple[float, float] | None]":
+    """Joint percentile bootstrap CI for precision, recall, and F1.
+
+    Args:
+        paired: List of ``(is_refuted, is_truly_false)`` pairs.
+
+    Returns:
+        Dict with keys ``"precision"``, ``"recall"``, ``"f1"`` each mapping to
+        ``(lower, upper)`` or ``None`` when there are fewer than ``_BOOTSTRAP_N``
+        samples.
+    """
+    n = len(paired)
+    null: dict[str, tuple[float, float] | None] = {
+        "precision": None, "recall": None, "f1": None
+    }
+    if n < _BOOTSTRAP_N:
+        return null
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    arr = np.array(paired, dtype=np.float64)  # (n, 2): col0=is_refuted, col1=is_truly_false
+    idx = rng.integers(0, n, size=(n_bootstrap, n))
+    boot = arr[idx]  # (n_bootstrap, n, 2)
+    boot_refuted = boot[:, :, 0]
+    boot_truly_false = boot[:, :, 1]
+    boot_tp = (boot_refuted * boot_truly_false).sum(axis=1)
+    boot_n_refuted = boot_refuted.sum(axis=1)
+    boot_n_truly_false = boot_truly_false.sum(axis=1)
+    boot_precision = boot_tp / np.maximum(boot_n_refuted, 1)
+    boot_recall = boot_tp / np.maximum(boot_n_truly_false, 1)
+    denom = boot_precision + boot_recall
+    with np.errstate(invalid="ignore", divide="ignore"):
+        boot_f1 = np.where(denom > 0, 2 * boot_precision * boot_recall / denom, 0.0)
+    alpha = 1.0 - ci_level
+    lo_pct = 100.0 * alpha / 2.0
+    hi_pct = 100.0 * (1.0 - alpha / 2.0)
+    return {
+        "precision": (
+            float(np.percentile(boot_precision, lo_pct)),
+            float(np.percentile(boot_precision, hi_pct)),
+        ),
+        "recall": (
+            float(np.percentile(boot_recall, lo_pct)),
+            float(np.percentile(boot_recall, hi_pct)),
+        ),
+        "f1": (
+            float(np.percentile(boot_f1, lo_pct)),
+            float(np.percentile(boot_f1, hi_pct)),
+        ),
+    }
+
 
 # ---------------------------------------------------------------------------
 # Metric dataclasses
@@ -91,6 +152,13 @@ class RefuteMetrics:
     refinement_rate: float
 
     mean_wall_seconds_per_conjecture: float = 0.0
+
+    precision_ci_lower: Optional[float] = None
+    precision_ci_upper: Optional[float] = None
+    recall_ci_lower: Optional[float] = None
+    recall_ci_upper: Optional[float] = None
+    f1_ci_lower: Optional[float] = None
+    f1_ci_upper: Optional[float] = None
 
 
 @dataclass
@@ -252,6 +320,16 @@ class RefuteEvaluator:
         # ── Refinement rate ───────────────────────────────────────────────────
         refinement_rate = n_refined / max(n_refuted, 1)
 
+        # ── Bootstrap confidence intervals ────────────────────────────────────
+        paired_outcomes = [
+            (
+                lr.status in (RefuteLoopStatus.REFUTED, RefuteLoopStatus.REFINED),
+                be.ground_truth_status == "false",
+            )
+            for lr, be in paired
+        ]
+        cis = _bootstrap_refute_ci(paired_outcomes)
+
         metrics = RefuteMetrics(
             n_total=n_total,
             n_refuted=n_refuted,
@@ -267,6 +345,12 @@ class RefuteEvaluator:
             tier_breakdown=tier_breakdown,
             refinement_rate=round(refinement_rate, 6),
             mean_wall_seconds_per_conjecture=0.0,
+            precision_ci_lower=cis["precision"][0] if cis["precision"] else None,
+            precision_ci_upper=cis["precision"][1] if cis["precision"] else None,
+            recall_ci_lower=cis["recall"][0] if cis["recall"] else None,
+            recall_ci_upper=cis["recall"][1] if cis["recall"] else None,
+            f1_ci_lower=cis["f1"][0] if cis["f1"] else None,
+            f1_ci_upper=cis["f1"][1] if cis["f1"] else None,
         )
 
         logger.info(
@@ -644,7 +728,7 @@ class RefuteEvaluator:
         Returns:
             A flat/nested dictionary suitable for ``json.dumps``.
         """
-        return {
+        d: dict = {
             "n_total": metrics.n_total,
             "n_refuted": metrics.n_refuted,
             "n_survived": metrics.n_survived,
@@ -660,6 +744,20 @@ class RefuteEvaluator:
             "domain_breakdown": metrics.domain_breakdown,
             "tier_breakdown": metrics.tier_breakdown,
         }
+        if metrics.precision_ci_lower is not None:
+            d["precision_ci"] = [
+                round(metrics.precision_ci_lower, 6),
+                round(metrics.precision_ci_upper, 6),
+            ]
+            d["recall_ci"] = [
+                round(metrics.recall_ci_lower, 6),
+                round(metrics.recall_ci_upper, 6),
+            ]
+            d["f1_ci"] = [
+                round(metrics.f1_ci_lower, 6),
+                round(metrics.f1_ci_upper, 6),
+            ]
+        return d
 
     @staticmethod
     def _metrics_to_markdown(metrics: RefuteMetrics) -> str:
@@ -682,9 +780,23 @@ class RefuteEvaluator:
         lines.append(f"| Refuted | {metrics.n_refuted} |")
         lines.append(f"| Survived | {metrics.n_survived} |")
         lines.append(f"| Refined | {metrics.n_refined} |")
-        lines.append(f"| Precision | {metrics.precision:.4f} |")
-        lines.append(f"| Recall | {metrics.recall:.4f} |")
-        lines.append(f"| F1 | {metrics.f1:.4f} |")
+        if metrics.precision_ci_lower is not None:
+            lines.append(
+                f"| Precision | {metrics.precision:.4f} "
+                f"[{metrics.precision_ci_lower:.4f}, {metrics.precision_ci_upper:.4f}] |"
+            )
+            lines.append(
+                f"| Recall | {metrics.recall:.4f} "
+                f"[{metrics.recall_ci_lower:.4f}, {metrics.recall_ci_upper:.4f}] |"
+            )
+            lines.append(
+                f"| F1 | {metrics.f1:.4f} "
+                f"[{metrics.f1_ci_lower:.4f}, {metrics.f1_ci_upper:.4f}] |"
+            )
+        else:
+            lines.append(f"| Precision | {metrics.precision:.4f} |")
+            lines.append(f"| Recall | {metrics.recall:.4f} |")
+            lines.append(f"| F1 | {metrics.f1:.4f} |")
         lines.append(f"| False Positive Rate | {metrics.false_positive_rate:.4f} |")
         lines.append(f"| Mean rounds (when found) | {metrics.mean_rounds:.2f} |")
         lines.append(f"| Refinement rate | {metrics.refinement_rate:.4f} |")
@@ -754,14 +866,29 @@ class RefuteEvaluator:
         )
         primary.add_column("Metric", style="bold")
         primary.add_column("Value", justify="right")
+        def _ci_suffix(lo: Optional[float], hi: Optional[float]) -> str:
+            return f" [{lo:.4f}, {hi:.4f}]" if lo is not None else ""
+
         for label, value in [
             ("Total conjectures", str(metrics.n_total)),
             ("Refuted", str(metrics.n_refuted)),
             ("Survived", str(metrics.n_survived)),
             ("Refined", str(metrics.n_refined)),
-            ("Precision", f"{metrics.precision:.4f}"),
-            ("Recall", f"{metrics.recall:.4f}"),
-            ("F1", f"{metrics.f1:.4f}"),
+            (
+                "Precision",
+                f"{metrics.precision:.4f}"
+                + _ci_suffix(metrics.precision_ci_lower, metrics.precision_ci_upper),
+            ),
+            (
+                "Recall",
+                f"{metrics.recall:.4f}"
+                + _ci_suffix(metrics.recall_ci_lower, metrics.recall_ci_upper),
+            ),
+            (
+                "F1",
+                f"{metrics.f1:.4f}"
+                + _ci_suffix(metrics.f1_ci_lower, metrics.f1_ci_upper),
+            ),
             ("False Positive Rate", f"{metrics.false_positive_rate:.4f}"),
             ("Mean rounds (when found)", f"{metrics.mean_rounds:.2f}"),
             ("Refinement rate", f"{metrics.refinement_rate:.4f}"),
@@ -849,8 +976,21 @@ class RefuteEvaluator:
         print("\n=== REFUTE Evaluation Report ===\n")
         print(f"  Total: {metrics.n_total}  |  Refuted: {metrics.n_refuted}  "
               f"|  Survived: {metrics.n_survived}  |  Refined: {metrics.n_refined}")
-        print(f"  Precision: {metrics.precision:.4f}  |  Recall: {metrics.recall:.4f}  "
-              f"|  F1: {metrics.f1:.4f}  |  FPR: {metrics.false_positive_rate:.4f}")
+        if metrics.precision_ci_lower is not None:
+            print(
+                f"  Precision: {metrics.precision:.4f} "
+                f"[{metrics.precision_ci_lower:.4f}, {metrics.precision_ci_upper:.4f}]  |  "
+                f"Recall: {metrics.recall:.4f} "
+                f"[{metrics.recall_ci_lower:.4f}, {metrics.recall_ci_upper:.4f}]  |  "
+                f"F1: {metrics.f1:.4f} "
+                f"[{metrics.f1_ci_lower:.4f}, {metrics.f1_ci_upper:.4f}]  |  "
+                f"FPR: {metrics.false_positive_rate:.4f}"
+            )
+        else:
+            print(
+                f"  Precision: {metrics.precision:.4f}  |  Recall: {metrics.recall:.4f}  "
+                f"|  F1: {metrics.f1:.4f}  |  FPR: {metrics.false_positive_rate:.4f}"
+            )
         print(f"  Mean rounds (when found): {metrics.mean_rounds:.2f}  "
               f"|  Refinement rate: {metrics.refinement_rate:.4f}")
 
