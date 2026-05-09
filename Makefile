@@ -1,4 +1,4 @@
-.PHONY: install test lean smoke check run-small run-full clean fmt lint run-experiments-pipeline run-experiments-refute
+.PHONY: install test lean smoke smoke-experiments check run-small run-full clean fmt lint run-experiments-pipeline run-experiments-refute
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 install:
@@ -33,6 +33,12 @@ check:
 
 smoke:
 	python3 scripts/run_smoke_test.py
+
+# Smoke test for the multi-run experiment launcher (no LLM, no Lean, no GPU).
+# Pre-populates seed dirs with fake JSONL so skip-detection, result loading,
+# aggregation, and file output are all exercised end-to-end.
+smoke-experiments:
+	python3 scripts/smoke_run_experiments.py
 
 # ── Pipeline runs ─────────────────────────────────────────────────────────────
 # Small run — 7B model via local HuggingFace (single A100 40/80 GB)
