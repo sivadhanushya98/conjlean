@@ -5,6 +5,7 @@ Coverage:
 - BOUNDARY strategy finds counterexamples for known-false conjectures.
 - BOUNDARY correctly returns no counterexample for known-true conjectures.
 - RANDOM_STRUCTURED strategy delegates to LLM suggestion and verifies via SymPy.
+- RANDOM_STRUCTURED candidate sampling is reproducible when stdlib random is seeded.
 - search_all_strategies terminates on the first successful strategy.
 - RefuterResult structure has all expected fields populated correctly.
 - strategy_scores are updated after each attempt.
@@ -20,6 +21,8 @@ Design notes:
 """
 
 from __future__ import annotations
+
+import random
 
 import pytest
 import pytest_asyncio
@@ -434,3 +437,76 @@ async def test_analogical_with_no_past_data(
     )
     assert isinstance(result.candidates, list)
     # best_counterexample may be None — that is acceptable when no past data exists
+
+
+# ---------------------------------------------------------------------------
+# Test 9: RANDOM_STRUCTURED respects stdlib random seed
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_random_structured_reproducible_with_seed(
+    false_conjecture_prime_poly: Conjecture,
+    mock_llm_client: MagicMock,
+    default_config: ConjLeanConfig,
+) -> None:
+    """
+    RANDOM_STRUCTURED candidate pool must be identical across two runs that
+    start with the same stdlib random seed.
+
+    This guards the fix that replaced random.Random() (OS-seeded, uncontrolled)
+    with the global random module (controlled by random.seed()).  If the fix
+    regresses, the two candidate lists will diverge.
+    """
+    Refuter = _import_refuter()
+
+    async def _collect_candidates(seed: int) -> list[str]:
+        random.seed(seed)
+        refuter = Refuter(client=mock_llm_client, config=default_config)
+        result: RefuterResult = await refuter.search(
+            conjecture=false_conjecture_prime_poly,
+            strategy=RefuterStrategy.RANDOM_STRUCTURED,
+            max_rounds=1,
+        )
+        return [c.candidate_str for c in result.candidates]
+
+    run_a = await _collect_candidates(seed=7)
+    run_b = await _collect_candidates(seed=7)
+
+    assert run_a == run_b, (
+        "RANDOM_STRUCTURED must produce identical candidates for the same seed. "
+        f"run_a={run_a!r}, run_b={run_b!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_random_structured_differs_across_seeds(
+    false_conjecture_prime_poly: Conjecture,
+    mock_llm_client: MagicMock,
+    default_config: ConjLeanConfig,
+) -> None:
+    """
+    RANDOM_STRUCTURED must draw different candidates for different seeds.
+
+    This is a probabilistic sanity check: the probability that two independent
+    draws from a pool of ~300 integers produce the same 20-element sample is
+    negligibly small, so this should never flap.
+    """
+    Refuter = _import_refuter()
+
+    async def _collect_sampled_pool(seed: int) -> set[str]:
+        random.seed(seed)
+        refuter = Refuter(client=mock_llm_client, config=default_config)
+        result: RefuterResult = await refuter.search(
+            conjecture=false_conjecture_prime_poly,
+            strategy=RefuterStrategy.RANDOM_STRUCTURED,
+            max_rounds=1,
+        )
+        return {c.candidate_str for c in result.candidates}
+
+    run_seed_1 = await _collect_sampled_pool(seed=1)
+    run_seed_2 = await _collect_sampled_pool(seed=99999)
+
+    assert run_seed_1 != run_seed_2, (
+        "Different seeds must yield different RANDOM_STRUCTURED candidate pools"
+    )

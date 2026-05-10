@@ -844,7 +844,6 @@ class Refuter:
             since search halts on first confirmed).  Empty list when no
             counterexample is found.
         """
-        rng = random.Random()  # not seeded: want genuine randomness across calls
         candidates: list[CounterexampleCandidate] = []
 
         if domain == Domain.NUMBER_THEORY:
@@ -867,10 +866,10 @@ class Refuter:
             squares = [i * i for i in range(1, 50)]
             composites = [k for k in range(4, 200) if not _is_prime(k)]
             fib = _FIBONACCI_NUMBERS[2:]  # skip 0, 1 (covered by boundary)
-            uniform = [rng.randint(2, 10_000) for _ in range(40)]
+            uniform = [random.randint(2, 10_000) for _ in range(40)]
 
             pool = primes_ext + squares + composites + fib + uniform
-            sampled: list[int] = rng.sample(pool, min(n_attempts, len(pool)))
+            sampled: list[int] = random.sample(pool, min(n_attempts, len(pool)))
 
             for n_val in sampled:
                 result = await asyncio.to_thread(
@@ -899,36 +898,36 @@ class Refuter:
         elif domain == Domain.INEQUALITY:
             def _sample_point() -> tuple[float, float, float]:
                 """Sample a positive-real triple with structurally diverse ratios."""
-                mode = rng.choice(["unit", "large", "small", "mixed", "extreme"])
+                mode = random.choice(["unit", "large", "small", "mixed", "extreme"])
                 if mode == "unit":
                     return (
-                        rng.uniform(0.5, 2.0),
-                        rng.uniform(0.5, 2.0),
-                        rng.uniform(0.5, 2.0),
+                        random.uniform(0.5, 2.0),
+                        random.uniform(0.5, 2.0),
+                        random.uniform(0.5, 2.0),
                     )
                 elif mode == "large":
                     return (
-                        rng.uniform(10.0, 1000.0),
-                        rng.uniform(10.0, 1000.0),
-                        rng.uniform(10.0, 1000.0),
+                        random.uniform(10.0, 1000.0),
+                        random.uniform(10.0, 1000.0),
+                        random.uniform(10.0, 1000.0),
                     )
                 elif mode == "small":
                     return (
-                        rng.uniform(1e-4, 0.1),
-                        rng.uniform(1e-4, 0.1),
-                        rng.uniform(1e-4, 0.1),
+                        random.uniform(1e-4, 0.1),
+                        random.uniform(1e-4, 0.1),
+                        random.uniform(1e-4, 0.1),
                     )
                 elif mode == "mixed":
                     return (
-                        rng.uniform(1e-3, 1e3),
-                        rng.uniform(1e-3, 1e3),
-                        rng.uniform(1e-3, 1e3),
+                        random.uniform(1e-3, 1e3),
+                        random.uniform(1e-3, 1e3),
+                        random.uniform(1e-3, 1e3),
                     )
                 else:  # extreme
                     return (
-                        rng.choice([1e-6, 1e-4, 1e6, 1e8]),
-                        rng.choice([1e-6, 1e-4, 1e6, 1e8]),
-                        rng.choice([1e-6, 1e-4, 1e6, 1e8]),
+                        random.choice([1e-6, 1e-4, 1e6, 1e8]),
+                        random.choice([1e-6, 1e-4, 1e6, 1e8]),
+                        random.choice([1e-6, 1e-4, 1e6, 1e8]),
                     )
 
             for _ in range(n_attempts):
@@ -965,7 +964,7 @@ class Refuter:
                     return candidates
 
         elif domain == Domain.COMBINATORICS:
-            sampled_n = [rng.randint(0, 200) for _ in range(n_attempts)]
+            sampled_n = [random.randint(0, 200) for _ in range(n_attempts)]
             for n_val in sampled_n:
                 result = await asyncio.to_thread(
                     _sympify_eval_combinatorics, conjecture.nl_statement, n_val
