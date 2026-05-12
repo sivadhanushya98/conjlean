@@ -17,8 +17,10 @@ all 21 refutations.
 Scaling to Qwen2.5-32B-Instruct (NF4 int4) leaves all metrics unchanged:
 precision $1.00$, recall $0.292$, F$_1$ $0.452$, with the same 21 conjectures
 refuted by the same BOUNDARY strategy.
-Analysis reveals that recall is structurally limited by the LLM-dependent
-strategies (symbolic perturbation, analogical transfer), which generate
-plausible but arithmetically invalid candidates at both model scales.
+Scaling within the tested Qwen family (7B\,\textrightarrow\,32B) did not
+improve recall on this benchmark, suggesting the current bottleneck is not
+resolved by this scale increase alone; LLM-dependent strategies
+(symbolic perturbation, analogical transfer) produced no verified
+counterexamples at either scale.
 Inequality and combinatorics domains remain entirely unsolved.
 \end{abstract}

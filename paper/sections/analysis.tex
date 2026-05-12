@@ -11,9 +11,9 @@ false instances often fail at $n \in \{0, 1, 2\}$ by design (Tier~1) or by
 nature (Tier~2 historical).
 The 7B model's LLM-dependent strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL)
 generate large candidate sets (56--124 candidates per run, median ${\approx}100$) but none verify.
-This suggests the 7B model understands the structure of the conjecture but
-produces candidates that are arithmetically invalid or outside the intended
-domain.
+None of these candidates pass SymPy verification; whether this reflects
+arithmetic errors, domain constraint violations, or other failure modes
+in the generated candidates is not directly observable from this data.
 
 \subsection{Strategist Early-Stop Bug and Fix}
 \label{sec:strategist_fix}
