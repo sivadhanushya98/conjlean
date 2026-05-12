@@ -35,9 +35,11 @@ LLM dialogue to propose custom tactic sequences (120\,s, up to 3 rounds).
 
 \subsection{REFUTE Pipeline}
 
+\input{figures/refute_pipeline}
+
 REFUTE attacks conjectures that survive proof search (i.e., are neither proved
 nor immediately disproved).
-It coordinates three agents in a closed loop.
+It coordinates three agents in a closed loop (Figure~\ref{fig:refute_pipeline}).
 
 \paragraph{R-Agent (Refuter).}
 Implements four counterexample-search strategies:

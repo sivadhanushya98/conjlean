@@ -185,7 +185,22 @@ def _sympify_eval_number_theory(
     import sympy  # local import: SymPy is CPU-bound; keep imports lazy
 
     stmt = nl_statement.lower()
+    # Strip "for all n ≥/>/= k, " and "for all n, " preambles so regex patterns
+    # capture only the mathematical expression, not the quantifier clause.
+    preamble_pat = re.compile(
+        r"^(?:for\s+all\s+\w+\s*(?:[≥><=]+|>=|<=)\s*[\d]+\s*[,;]\s*"
+        r"|for\s+all\s+\w+\s*[,;]\s*)",
+        re.UNICODE,
+    )
+    stmt = preamble_pat.sub("", stmt).strip()
     n_sym = sympy.Symbol("n", positive=True, integer=True)
+
+    def _to_sympy_expr(raw: str) -> "sympy.Expr":
+        """Normalise raw string to a SymPy expression, converting ^ → **."""
+        cleaned = raw.strip().rstrip(".,").replace("^", "**")
+        return sympy.sympify(
+            cleaned, locals={"n": n_sym, "factorial": sympy.factorial}
+        )
 
     # Divisibility: "k divides f(n)" or "f(n) divisible by k"
     div_patterns = [
@@ -204,10 +219,7 @@ def _sympify_eval_number_theory(
             k_str, expr_str = groups[0], groups[1]
         try:
             k = int(k_str.strip())
-            expr = sympy.sympify(
-                expr_str.strip().rstrip("."),
-                locals={"n": n_sym, "factorial": sympy.factorial},
-            )
+            expr = _to_sympy_expr(expr_str)
             result = int(expr.subs(n_sym, n_val).evalf())
             return result % k == 0
         except (ValueError, sympy.SympifyError, TypeError):
@@ -223,10 +235,7 @@ def _sympify_eval_number_theory(
         if m is None:
             continue
         try:
-            expr = sympy.sympify(
-                m.group(1).strip(),
-                locals={"n": n_sym},
-            )
+            expr = _to_sympy_expr(m.group(1))
             mod_k = int(m.group(2))
             rem = int(m.group(3))
             result = int(expr.subs(n_sym, n_val).evalf())

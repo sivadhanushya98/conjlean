@@ -11,9 +11,25 @@ false instances often fail at $n \in \{0, 1, 2\}$ by design (Tier~1) or by
 nature (Tier~2 historical).
 The 7B model's LLM-dependent strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL)
 generate large candidate sets (56--124 candidates per run, median ${\approx}100$) but none verify.
-None of these candidates pass SymPy verification; whether this reflects
-arithmetic errors, domain constraint violations, or other failure modes
-in the generated candidates is not directly observable from this data.
+
+\paragraph{SymPy parser limitation.}
+Post-hoc inspection of the raw loop results reveals that all 5 SP rounds in
+E2 (and all ANALOGICAL rounds on the same conjectures) return
+$\mathtt{holds=None}$ for every candidate; BOUNDARY also produces 0 verified
+candidates for these conjectures.
+The root cause is a parsing failure in \texttt{\_sympify\_eval\_number\_theory}:
+the ``is divisible by'' regex captures the full NL preamble
+(e.g.\ ``for all $n \geq 1$, $n^3-n$'') rather than just the expression,
+causing a \texttt{SympifyError}; additionally, exponent notation
+(\texttt{\^}) was not converted to Python's \texttt{**} before sympification.
+Conjectures in the \emph{k divides f(n)} form (e.g.\ ``12 divides
+$n(n{+}1)(n{+}2)$'') were unaffected and were correctly caught by BOUNDARY.
+This bug has been patched in the codebase: a preamble-stripping regex now
+extracts only the algebraic expression, and \texttt{\^} is normalised to
+\texttt{**} before sympification.
+The E1/E2 experimental results were obtained \emph{before} this patch;
+at least 5 Tier~1 conjectures (t1\_0005--t1\_0013) are now expected to be
+refutable by BOUNDARY post-patch.
 
 \subsection{Strategist Early-Stop Bug and Fix}
 \label{sec:strategist_fix}
