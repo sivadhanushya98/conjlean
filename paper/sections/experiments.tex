@@ -2,7 +2,7 @@
 \label{sec:experiments}
 
 \paragraph{Models.}
-We evaluate two model scales:
+We evaluate three runs:
 \begin{itemize}[noitemsep]
   \item \textbf{E1 — Qwen2.5-Math-7B-Instruct}~\citep{qwen2025math}:
     a math-specialized 7B model loaded in bf16 on a single NVIDIA A100-SXM4
@@ -13,8 +13,11 @@ We evaluate two model scales:
     a general-purpose 32B model loaded in 4-bit NF4 quantization via
     bitsandbytes~0.49~\citep{dettmers2023qlora} on the same A100-40\,GB
     (${\approx}19$\,GB VRAM at inference).
-    Produces identical recall to E1: 21/92 refuted, precision $1.000$,
-    recall $0.292$, F$_1$ $0.452$. All wins via BOUNDARY.
+    Identical settings to E1 except model and concurrency.
+  \item \textbf{E3 — Qwen2.5-Math-7B-Instruct (patched verifier)}:
+    identical to E1 in all settings, but run after the SymPy NL-parser fix
+    described in \S\ref{sec:analysis}.
+    E3 isolates the recall impact of the verifier bug.
 \end{itemize}
 
 \paragraph{Inference.}

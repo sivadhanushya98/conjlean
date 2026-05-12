@@ -27,9 +27,8 @@ $n(n{+}1)(n{+}2)$'') were unaffected and were correctly caught by BOUNDARY.
 This bug has been patched in the codebase: a preamble-stripping regex now
 extracts only the algebraic expression, and \texttt{\^} is normalised to
 \texttt{**} before sympification.
-The E1/E2 experimental results were obtained \emph{before} this patch;
-at least 5 Tier~1 conjectures (t1\_0005--t1\_0013) are now expected to be
-refutable by BOUNDARY post-patch.
+The E1/E2 experimental results were obtained \emph{before} this patch.
+The impact on recall is measured in E3 (\S\ref{sec:experiments}).
 
 \subsection{Strategist Early-Stop Bug and Fix}
 \label{sec:strategist_fix}
