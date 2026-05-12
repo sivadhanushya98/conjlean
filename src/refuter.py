@@ -208,12 +208,14 @@ def _sympify_eval_number_theory(
         r"(\d+)\s*\|\s*(.+?)(?:\s+for|\s+when|\s*$)",
         r"(.+?)\s+is\s+divisible\s+by\s+(\d+)",
     ]
-    for pat in div_patterns:
+    for i, pat in enumerate(div_patterns):
         m = re.search(pat, stmt)
         if m is None:
             continue
         groups = m.groups()
-        if "divisible by" in pat:
+        # Pattern 2 is "f(n) is divisible by k": groups = (expr, k)
+        # Patterns 0,1 are "k divides f(n)": groups = (k, expr)
+        if i == 2:
             expr_str, k_str = groups[0], groups[1]
         else:
             k_str, expr_str = groups[0], groups[1]
