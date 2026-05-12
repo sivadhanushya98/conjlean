@@ -1,12 +1,18 @@
 # ConjLean — Lambda Labs A100 40 GB
-# Model: Qwen/Qwen2.5-Math-32B-Instruct via local HuggingFace + bitsandbytes NF4
+# Model: Qwen/Qwen2.5-32B-Instruct via local HuggingFace + bitsandbytes NF4
+#
+# Note: Qwen2.5-Math only exists in 1.5B/7B/72B. Qwen2.5-32B-Instruct is the
+# general model; it scores competitively on MATH benchmarks and is the best
+# capability/VRAM tradeoff on a 40 GB A100.
+# Qwen2.5-Math-72B-Instruct was rejected: 36 GB weights leaves <1 GB for
+# activations/KV-cache and will OOM mid-run.
 #
 # VRAM budget:
-#   32B × 0.5 bytes (NF4) ≈ 16 GB weights + ~4 GB activations/kv-cache = ~20 GB
-#   Fits on A100-40GB with headroom. bf16 (64 GB) does NOT fit.
+#   32B × 0.5 bytes (NF4) ≈ 16 GB weights + ~3 GB activations/kv-cache = ~19 GB
+#   Fits on A100-40GB with ~21 GB headroom.
 #
 # Pre-flight:
-#   1. huggingface-cli login          # refresh token (model is gated)
+#   1. hf auth login                  # log in with a read-scoped HF token
 #   2. pip install bitsandbytes       # already installed on this instance
 #   3. First run downloads ~65 GB to ~/.cache/huggingface/hub/
 #      (disk has ~456 GB free — fine)
@@ -21,18 +27,18 @@
 provider: local_hf
 
 models:
-  conjecture_gen: Qwen/Qwen2.5-Math-32B-Instruct
-  formalizer: Qwen/Qwen2.5-Math-32B-Instruct
-  proof_gen: Qwen/Qwen2.5-Math-32B-Instruct
+  conjecture_gen: Qwen/Qwen2.5-32B-Instruct
+  formalizer: Qwen/Qwen2.5-32B-Instruct
+  proof_gen: Qwen/Qwen2.5-32B-Instruct
 
 api_keys:
   anthropic: ""
   openai: ""
   gemini: ""
-  huggingface: ""  # set HF_TOKEN env var if model is gated
+  huggingface: ""  # set HF_TOKEN env var if needed
 
 local_hf:
-  model: "Qwen/Qwen2.5-Math-32B-Instruct"
+  model: "Qwen/Qwen2.5-32B-Instruct"
   torch_dtype: "bfloat16"   # base dtype; bitsandbytes NF4 overrides at load time
   device_map: "auto"
   max_new_tokens: 4096
