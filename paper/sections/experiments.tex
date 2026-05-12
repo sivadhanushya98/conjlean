@@ -11,7 +11,7 @@ We evaluate two model scales:
     Strategist LLM fallback.
   \item \textbf{E2 — Qwen2.5-32B-Instruct}~\citep{qwen2025}:
     a general-purpose 32B model loaded in 4-bit NF4 quantization via
-    bitsandbytes~0.49~\citep{dettmers2022gptq} on the same A100-40\,GB
+    bitsandbytes~0.49~\citep{dettmers2023qlora} on the same A100-40\,GB
     (${\approx}19$\,GB VRAM at inference).
     Produces identical recall to E1: 21/92 refuted, precision $1.000$,
     recall $0.292$, F$_1$ $0.452$. All wins via BOUNDARY.

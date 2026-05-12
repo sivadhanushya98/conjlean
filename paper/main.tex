@@ -1,54 +1,88 @@
-% ConjLean/REFUTE — ICML AI4Research 2026
-% Build: pdflatex main.tex (twice for cross-references)
-% Style: download icml2026.sty from the workshop page and place here
+%%%%%%%% ICML 2026 — ConjLean / REFUTE submission %%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass{article}
 
-% Uncomment when icml2026.sty is available:
-% \usepackage[accepted]{icml2026}
-
-% Temporary fallback style for local drafting
-\usepackage[margin=1in]{geometry}
-\usepackage{times}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{amsmath,amssymb,amsthm}
 \usepackage{hyperref}
-\usepackage{xcolor}
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+% Use this line for blind review submission:
+\usepackage{icml2026}
+% Camera-ready: replace above with \usepackage[accepted]{icml2026}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{enumitem}
+\usepackage[capitalize,noabbrev]{cleveref}
 
-% Placeholder marker — wrap unverified/pending values
-\newcommand{\placeholder}[1]{\colorbox{yellow!40}{\textbf{[#1]}}}
-\newcommand{\TODO}[1]{\textcolor{red}{\textbf{TODO: #1}}}
+% TikZ for pipeline figure
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.geometric}
 
-\title{\textbf{ConjLean}: Automated Mathematical Conjecture Generation,\\
-Lean~4 Formalization, and Multi-Agent Counterexample Refutation}
-
-\author{%
-  \placeholder{Author names redacted for review}\\
-  \placeholder{Institution}
-}
-
-\date{}
+\icmltitlerunning{ConjLean: Conjecture Generation and Multi-Agent Counterexample Refutation}
 
 \begin{document}
 
-\maketitle
+\twocolumn[
+\icmltitle{ConjLean: Automated Mathematical Conjecture Generation,\\
+           Lean~4 Formalization, and Multi-Agent Counterexample Refutation}
 
-\input{sections/abstract}
+% Double-blind: author block is omitted for review.
+% Camera-ready: fill \begin{icmlauthorlist}...\end{icmlauthorlist}
+% and \icmlaffiliation / \icmlcorrespondingauthor / \icmlkeywords below.
+
+\begin{icmlauthorlist}
+  \icmlauthor{Anonymous Author(s)}{anon}
+\end{icmlauthorlist}
+\icmlaffiliation{anon}{Affiliation withheld for blind review}
+
+\icmlcorrespondingauthor{Anonymous}{anonymous@example.com}
+
+\icmlkeywords{automated theorem proving, counterexample search, conjecture generation,
+              Lean 4, multi-agent systems, machine learning for mathematics}
+
+\vskip 0.3in
+]
+
+% Print document title and author block.
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+We present \textbf{ConjLean}, an end-to-end pipeline for automated mathematical
+conjecture generation, SymPy symbolic pre-filtering, Lean~4 formalization, and
+four-layer escalating proof search, paired with \textbf{REFUTE}, a multi-agent
+counterexample-search system.
+REFUTE coordinates an R-Agent (four search strategies: boundary sweep,
+random structured sampling, symbolic perturbation, and analogical transfer),
+an S-Agent that selects strategies via a UCB1 bandit over cross-conjecture
+statistics, and a C-Agent that proposes refined conjectures when a
+counterexample is confirmed.
+We evaluate on a 92-conjecture benchmark spanning three difficulty tiers and
+three mathematical domains, with all ground-truth labels verified
+programmatically.
+Using Qwen2.5-Math-7B-Instruct, REFUTE achieves precision~$1.000$,
+recall~$0.292$ ($95\%$\,CI $[0.19,\,0.39]$), and F$_1$~$0.452$
+($[0.32,\,0.57]$) with zero false positives.
+Scaling to Qwen2.5-32B-Instruct (NF4 int4) does not improve recall within
+this experimental setting, indicating the current bottleneck is not resolved
+by this scale increase alone; LLM-dependent strategies produced no verified
+counterexamples at either scale.
+\end{abstract}
+
 \input{sections/introduction}
+\input{sections/related}
 \input{sections/system}
 \input{sections/benchmark}
 \input{sections/experiments}
 \input{sections/results}
 \input{sections/analysis}
-\input{sections/related}
 \input{sections/conclusion}
 
-\bibliographystyle{plainnat}
 \bibliography{references}
+\bibliographystyle{icml2026}
 
 \end{document}
