@@ -1,5 +1,7 @@
-% Verified from data/results/e1_seed0_postpatch/eval.json
-% All precision values are 1.000 where refuted > 0; omitted (—) where 0.
+% Verified from eval.json for both runs (E1 and E2 values are identical).
+% E1: data/results/e1_seed0_postpatch/eval.json
+% E2: data/results/e2_seed0_32b/eval.json
+% All precision values are 1.000 where refuted > 0; shown as — where 0.
 \begin{tabular}{llrrrcc}
 \toprule
 & & \multicolumn{3}{c}{\textbf{E1 (7B)}} & \multicolumn{2}{c}{\textbf{E2 (32B)}} \\
@@ -7,13 +9,13 @@
 \textbf{Split} & \textbf{Subset} & \textbf{Total / False} & \textbf{Refuted} & \textbf{Recall} & \textbf{Refuted} & \textbf{Recall} \\
 \midrule
 \multirow{3}{*}{Tier}
-  & Tier 1 (synthetic)  & 59 / 59 & 20 & 0.339 & \placeholder{?} & \placeholder{?} \\
-  & Tier 2 (historical) & 23 / 6  &  1 & 0.167 & \placeholder{?} & \placeholder{?} \\
-  & Tier 3 (subtle)     & 10 / 7  &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
+  & Tier 1 (synthetic)  & 59 / 59 & 20 & 0.339 & 20 & 0.339 \\
+  & Tier 2 (historical) & 23 / 6  &  1 & 0.167 &  1 & 0.167 \\
+  & Tier 3 (subtle)     & 10 / 7  &  0 & 0.000 &  0 & 0.000 \\
 \midrule
 \multirow{3}{*}{Domain}
-  & Number theory       & 69 / 54 & 21 & 0.389 & \placeholder{?} & \placeholder{?} \\
-  & Inequality          & 13 / 13 &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
-  & Combinatorics       & 10 / 5  &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
+  & Number theory       & 69 / 54 & 21 & 0.389 & 21 & 0.389 \\
+  & Inequality          & 13 / 13 &  0 & 0.000 &  0 & 0.000 \\
+  & Combinatorics       & 10 / 5  &  0 & 0.000 &  0 & 0.000 \\
 \bottomrule
 \end{tabular}

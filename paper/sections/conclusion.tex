@@ -10,9 +10,16 @@ deterministic boundary sweep.
 LLM-dependent strategies (symbolic perturbation, analogical transfer) do not
 yet contribute at 7B scale.
 
-\placeholder{E2 paragraph: insert 32B comparison and conclusions after run.}
+Scaling from Qwen2.5-Math-7B to Qwen2.5-32B-Instruct (NF4 int4) produces no
+change in recall, precision, or the set of refuted conjectures.
+This result strongly suggests the bottleneck is not LLM capacity for candidate
+\emph{generation} but for candidate \emph{validity}: the LLM-dependent
+strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL) produce candidates that are
+structurally plausible but fail SymPy verification at both scales.
+Fine-tuning on verified counterexample triples, rather than general
+instruction-following data, is the indicated next step.
 
-Key lessons from E1:
+Key lessons from E1 and E2:
 (1) zero false positives are achievable through exact SymPy verification, a
 property that scales model scale cannot erode;
 (2) the recall bottleneck lies squarely in LLM-generated candidate quality for

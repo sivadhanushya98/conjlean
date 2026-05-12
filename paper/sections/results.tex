@@ -7,7 +7,8 @@ Table~\ref{tab:main_results} reports overall REFUTE performance.
 E1 (7B) achieves perfect precision with 21 refutations out of 92 conjectures.
 Recall of $0.292$ means 51 of 72 truly-false conjectures are not refuted,
 establishing a clear capacity ceiling for the 7B model.
-\placeholder{E2 row to be filled after run completes.}
+E2 (32B int4) produces identical recall to E1: precision $1.000$, recall
+$0.292$, F$_1$ $0.452$, all 21 refutations via BOUNDARY.
 
 \begin{table}[h]
 \centering
@@ -56,4 +57,7 @@ each received at least BOUNDARY + RANDOM\_STRUCTURED).
 This finding motivates the 32B experiment: SYMBOLIC\_PERTURBATION and
 ANALOGICAL are LLM-dependent and may require stronger generation capability
 to produce verifiable candidates.
-\placeholder{E2 strategy attribution to be added.}
+E2 (32B) confirms this pattern: all 21 refutations remain attributed to
+BOUNDARY. Five survived conjectures received all four strategies (vs.\ two in
+E1), but none yielded a verified counterexample, ruling out under-exploration
+as the cause of low recall.

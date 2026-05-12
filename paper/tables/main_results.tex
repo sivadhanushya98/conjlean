@@ -1,13 +1,14 @@
-% Verified from data/results/e1_seed0_postpatch/eval.json
-% E2 row: placeholder until run completes
+% Verified from eval.json for both runs.
+% E1: data/results/e1_seed0_postpatch/eval.json
+% E2: data/results/e2_seed0_32b/eval.json
 \begin{tabular}{llccccc}
 \toprule
 \textbf{Run} & \textbf{Model} & \textbf{Refuted} & \textbf{Precision} & \textbf{Recall} & \textbf{F\textsubscript{1}} & \textbf{FPR} \\
 \midrule
-E1 & Qwen2.5-Math-7B  & 21/92 & 1.000              & 0.292 [0.19, 0.39] & 0.452 [0.32, 0.57] & 0.000 \\
-   & (bf16, A100-40G) &       & [1.00, 1.00]       &                    &                    &       \\
+E1 & Qwen2.5-Math-7B  & 21/92 & 1.000        & 0.292 [0.19, 0.39] & 0.452 [0.32, 0.57] & 0.000 \\
+   & (bf16, A100-40G) &       & [1.00, 1.00] &                    &                    &       \\
 \addlinespace
-E2 & Qwen2.5-32B      & \placeholder{?/92} & \placeholder{?} & \placeholder{?} & \placeholder{?} & \placeholder{?} \\
-   & (NF4 int4)       &                    &                 &                 &                 &                 \\
+E2 & Qwen2.5-32B      & 21/92 & 1.000        & 0.292 [0.19, 0.39] & 0.452 [0.32, 0.57] & 0.000 \\
+   & (NF4 int4)       &       & [1.00, 1.00] &                    &                    &       \\
 \bottomrule
 \end{tabular}

@@ -13,7 +13,8 @@ We evaluate two model scales:
     a general-purpose 32B model loaded in 4-bit NF4 quantization via
     bitsandbytes~0.49~\citep{dettmers2022gptq} on the same A100-40\,GB
     (${\approx}19$\,GB VRAM at inference).
-    \placeholder{E2 results pending.}
+    Produces identical recall to E1: 21/92 refuted, precision $1.000$,
+    recall $0.292$, F$_1$ $0.452$. All wins via BOUNDARY.
 \end{itemize}
 
 \paragraph{Inference.}

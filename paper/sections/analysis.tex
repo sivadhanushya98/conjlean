@@ -62,4 +62,7 @@ the C-Agent proposes a refinement that still fails at $n=1$, and the loop
 exhausts its refinement budget refuting successively more restricted statements
 rather than converging on a true strengthening.
 This points to a C-Agent prompt engineering opportunity.
-\placeholder{Quantitative refinement quality analysis pending after E2.}
+E2 (32B) exhibits the same failure mode: boundary-exploitable conjectures
+cycle through $n=1$ or $n=2$ counterexamples across all refinements, while
+the C-Agent's proposed conditions are insufficiently tight. This is consistent
+across model scales.

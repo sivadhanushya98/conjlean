@@ -14,8 +14,11 @@ Using Qwen2.5-Math-7B-Instruct, REFUTE achieves precision $1.00$,
 recall $0.292$ ($95\%$ CI $[0.19, 0.39]$), and
 F$_1$ $0.452$ ($95\%$ CI $[0.32, 0.57]$) with zero false positives across
 all 21 refutations.
-\placeholder{E2: Qwen2.5-32B-Instruct (int4) results TBD.}
-Analysis reveals that recall is currently limited to number-theoretic domains:
-inequality and combinatorics conjectures remain unsolved, pointing to a
-model-capacity bottleneck in the LLM-dependent strategies.
+Scaling to Qwen2.5-32B-Instruct (NF4 int4) leaves all metrics unchanged:
+precision $1.00$, recall $0.292$, F$_1$ $0.452$, with the same 21 conjectures
+refuted by the same BOUNDARY strategy.
+Analysis reveals that recall is structurally limited by the LLM-dependent
+strategies (symbolic perturbation, analogical transfer), which generate
+plausible but arithmetically invalid candidates at both model scales.
+Inequality and combinatorics domains remain entirely unsolved.
 \end{abstract}
