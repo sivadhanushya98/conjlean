@@ -1,0 +1,19 @@
+% Verified from data/results/e1_seed0_postpatch/eval.json
+% All precision values are 1.000 where refuted > 0; omitted (—) where 0.
+\begin{tabular}{llrrrcc}
+\toprule
+& & \multicolumn{3}{c}{\textbf{E1 (7B)}} & \multicolumn{2}{c}{\textbf{E2 (32B)}} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-7}
+\textbf{Split} & \textbf{Subset} & \textbf{Total / False} & \textbf{Refuted} & \textbf{Recall} & \textbf{Refuted} & \textbf{Recall} \\
+\midrule
+\multirow{3}{*}{Tier}
+  & Tier 1 (synthetic)  & 59 / 59 & 20 & 0.339 & \placeholder{?} & \placeholder{?} \\
+  & Tier 2 (historical) & 23 / 6  &  1 & 0.167 & \placeholder{?} & \placeholder{?} \\
+  & Tier 3 (subtle)     & 10 / 7  &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
+\midrule
+\multirow{3}{*}{Domain}
+  & Number theory       & 69 / 54 & 21 & 0.389 & \placeholder{?} & \placeholder{?} \\
+  & Inequality          & 13 / 13 &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
+  & Combinatorics       & 10 / 5  &  0 & 0.000 & \placeholder{?} & \placeholder{?} \\
+\bottomrule
+\end{tabular}

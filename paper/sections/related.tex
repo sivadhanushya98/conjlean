@@ -1,0 +1,37 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Automated theorem proving.}
+Lean-based interactive proof assistants~\citep{moura2021lean4} have been
+combined with LLMs in systems such as
+Draft-Sketch-Prove~\citep{TODO},
+COPRA~\citep{TODO}, and
+LeanDojo~\citep{yang2023leandojo}.
+AlphaProof~\citep{alphageometry2024} demonstrates strong performance on
+competition mathematics.
+Our work is complementary: ConjLean focuses on \emph{refutation} and
+conjecture generation rather than proof construction.
+
+\paragraph{Counterexample search.}
+Property-based testing~\citep{claessen2000quickcheck} is the dominant
+approach in software verification but does not generalize naturally to
+symbolic mathematical statements.
+Nitpick~\citep{blanchette2010nitpick} and Sledgehammer~\citep{TODO} provide
+counterexample search for Isabelle/HOL but are not LLM-augmented.
+\citet{TODO} use LLMs to suggest falsifying inputs for program properties;
+we adapt this idea to mathematical conjectures with symbolic verification.
+
+\paragraph{Conjecture generation.}
+FunSearch~\citep{romera2024funsearch} evolves programs that discover
+mathematical structures but does not produce Lean-formalizable conjectures.
+LLM-based conjecture generation has been explored in~\citet{TODO} without
+a formal verification backend.
+Ramanujan Machine~\citep{raayoni2021ramanujan} generates conjectures for
+continued fractions via numerical pattern detection.
+
+\paragraph{Multi-agent mathematical reasoning.}
+Recent work on multi-agent LLM systems for mathematics~\citep{TODO} focuses
+on collaborative proof construction.
+Our S-Agent/R-Agent/C-Agent decomposition is, to our knowledge, the first
+bandit-coordinated multi-strategy counterexample-search framework with
+formal symbolic verification.

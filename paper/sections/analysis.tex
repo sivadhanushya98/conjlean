@@ -1,0 +1,65 @@
+\section{Analysis}
+\label{sec:analysis}
+
+\subsection{Why BOUNDARY Dominates}
+
+The BOUNDARY strategy performs a deterministic sweep over a fixed set of
+edge-case values: $\{0, 1, 2, -1, 10, 100\}$ and small primes, squares,
+and Fibonacci numbers.
+For number-theoretic conjectures of the form ``$P(n)$ holds for all $n$'',
+false instances often fail at $n \in \{0, 1, 2\}$ by design (Tier~1) or by
+nature (Tier~2 historical).
+The 7B model's LLM-dependent strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL)
+generate large candidate sets (105--114 candidates per run) but none verify.
+This suggests the 7B model understands the structure of the conjecture but
+produces candidates that are arithmetically invalid or outside the intended
+domain.
+
+\subsection{Strategist Early-Stop Bug and Fix}
+\label{sec:strategist_fix}
+
+During development we identified a bug in the Strategist's
+\texttt{should\_stop} condition.
+After processing several conjectures, global statistics for
+RANDOM\_STRUCTURED, SYMBOLIC\_PERTURBATION, and ANALOGICAL accumulated
+$\geq 5$ attempts with win rate $0.000$.
+The low-confidence stopping condition
+($\text{best win rate of untried strategies} < 0.05$)
+then fired after a single BOUNDARY round for all subsequent conjectures.
+
+\paragraph{Consequence.} Pre-patch: 69 of 71 survived conjectures received
+only 1 round (BOUNDARY alone). Post-patch: all conjectures receive at least
+2 distinct strategies before early stopping is permitted.
+
+\paragraph{Impact on recall.} Zero.
+Post-patch recall ($0.292$) is identical to pre-patch recall.
+The additional RANDOM\_STRUCTURED rounds on 69 conjectures produced no new
+refutations, confirming that the survived conjectures are genuinely hard for
+the 7B model rather than merely under-explored.
+
+\paragraph{Correct behavior.} The patch is nonetheless necessary: the correct
+pipeline behavior is to try at least two strategies before concluding
+low-confidence termination, and the pre-patch shortcut constituted incorrect
+accounting of strategy coverage in experimental records.
+
+\subsection{Precision and False-Positive Rate}
+
+Precision is $1.000$ in all runs ($\text{FPR} = 0.000$).
+Every accepted counterexample is SymPy-verified before being recorded as a
+refutation, and SymPy verification is exact for the polynomial and modular
+arithmetic involved in these conjectures.
+The zero false-positive rate is a structural guarantee of the pipeline, not
+a statistical result.
+
+\subsection{C-Agent Refinement Quality}
+
+Of the 21 refuted conjectures, all have status \texttt{refined} in the raw
+loop output (the original statement was refuted, then a refined version was
+proposed and re-attacked).
+However, the evaluator correctly maps \texttt{refined} $\to$ refuted.
+Inspection of several refined conjectures reveals a recurring failure mode:
+the C-Agent proposes a refinement that still fails at $n=1$, and the loop
+exhausts its refinement budget refuting successively more restricted statements
+rather than converging on a true strengthening.
+This points to a C-Agent prompt engineering opportunity.
+\placeholder{Quantitative refinement quality analysis pending after E2.}

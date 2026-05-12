@@ -1,0 +1,31 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented ConjLean and REFUTE, complementary systems for automated
+mathematical conjecture generation, Lean~4 formalization, and multi-agent
+counterexample refutation.
+On a 92-conjecture benchmark, REFUTE with Qwen2.5-Math-7B achieves perfect
+precision ($1.000$) and recall $0.292$, with all refutations attributable to
+deterministic boundary sweep.
+LLM-dependent strategies (symbolic perturbation, analogical transfer) do not
+yet contribute at 7B scale.
+
+\placeholder{E2 paragraph: insert 32B comparison and conclusions after run.}
+
+Key lessons from E1:
+(1) zero false positives are achievable through exact SymPy verification, a
+property that scales model scale cannot erode;
+(2) the recall bottleneck lies squarely in LLM-generated candidate quality for
+non-trivial strategies;
+(3) a correct Strategist early-stop policy matters for experimental integrity
+even when it does not change aggregate recall.
+
+\paragraph{Future work.}
+Domain-specific LoRA fine-tuning of the Refuter on verified counterexample
+triples (the \texttt{make finetune-refuter} pipeline) is the most direct path
+to improving SYMBOLIC\_PERTURBATION yield.
+Richer C-Agent prompting that explicitly checks whether refined statements
+still fail at $n=1$ would address the refinement-loop failure mode identified
+in \S\ref{sec:analysis}.
+Extending the benchmark to cover algebraic geometry and combinatorial
+identities would stress-test ANALOGICAL more meaningfully.

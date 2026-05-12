@@ -1,0 +1,54 @@
+% ConjLean/REFUTE — ICML AI4Research 2026
+% Build: pdflatex main.tex (twice for cross-references)
+% Style: download icml2026.sty from the workshop page and place here
+
+\documentclass{article}
+
+% Uncomment when icml2026.sty is available:
+% \usepackage[accepted]{icml2026}
+
+% Temporary fallback style for local drafting
+\usepackage[margin=1in]{geometry}
+\usepackage{times}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{enumitem}
+
+% Placeholder marker — wrap unverified/pending values
+\newcommand{\placeholder}[1]{\colorbox{yellow!40}{\textbf{[#1]}}}
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{TODO: #1}}}
+
+\title{\textbf{ConjLean}: Automated Mathematical Conjecture Generation,\\
+Lean~4 Formalization, and Multi-Agent Counterexample Refutation}
+
+\author{%
+  \placeholder{Author names redacted for review}\\
+  \placeholder{Institution}
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/system}
+\input{sections/benchmark}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/analysis}
+\input{sections/related}
+\input{sections/conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

@@ -1,0 +1,35 @@
+\section{Benchmark}
+\label{sec:benchmark}
+
+We construct a benchmark of 92 conjectures across three tiers and three
+mathematical domains (number theory, inequality, combinatorics).
+All Tier~1 and Tier~2 ground-truth labels were verified programmatically
+before inclusion; no label was assigned by LLM judgment alone.
+
+\paragraph{Tier 1 — Synthetic-false (59 conjectures).}
+Conjectures are designed to be false with a small, verifiable counterexample.
+All 59 have a confirmed SymPy-verified counterexample.
+This tier tests basic refutation capacity.
+
+\paragraph{Tier 2 — Historical (23 conjectures).}
+Conjectures drawn from the history of mathematics with known resolution,
+including the Euler sum-of-powers conjecture, the Mertens conjecture,
+Fermat's Last Theorem (encoded as finite-range instances), and
+Goldbach-adjacent statements.
+6 of the 23 are false (verified); 17 are true.
+
+\paragraph{Tier 3 — Subtle / open (10 conjectures).}
+Cases involving scope ambiguity, near-tautologies, or open problems.
+7 of the 10 are classified as false under a strict reading; 3 are true.
+This tier tests specificity and false-positive resistance.
+
+\noindent
+The full benchmark distribution is summarized in Table~\ref{tab:benchmark}.
+
+\begin{table}[h]
+\centering
+\caption{Benchmark composition. ``False'' = conjectures with a verified
+counterexample (ground-truth positive for refutation).}
+\label{tab:benchmark}
+\input{tables/benchmark_composition}
+\end{table}

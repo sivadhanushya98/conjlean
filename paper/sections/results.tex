@@ -1,0 +1,59 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Primary Metrics}
+
+Table~\ref{tab:main_results} reports overall REFUTE performance.
+E1 (7B) achieves perfect precision with 21 refutations out of 92 conjectures.
+Recall of $0.292$ means 51 of 72 truly-false conjectures are not refuted,
+establishing a clear capacity ceiling for the 7B model.
+\placeholder{E2 row to be filled after run completes.}
+
+\begin{table}[h]
+\centering
+\caption{REFUTE primary metrics. CI = 95\% bootstrap confidence interval.
+\placeholder{E2 row pending.}}
+\label{tab:main_results}
+\input{tables/main_results}
+\end{table}
+
+\subsection{Tier and Domain Breakdown}
+
+Table~\ref{tab:breakdown} disaggregates results by tier and domain.
+Several patterns are immediately apparent:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Number theory dominates.}
+    All 21 E1 refutations are in number theory (recall $0.389$).
+    Inequality and combinatorics recall is $0.000$ under both runs.
+
+  \item \textbf{Tier 1 ceiling is low.}
+    Even on synthetic-false conjectures (Tier~1), recall is $0.339$,
+    indicating that 39 of 59 straightforwardly false conjectures escape
+    refutation.
+
+  \item \textbf{Tier 2 / Tier 3 recall is near zero.}
+    Only 1 of 6 false Tier~2 conjectures is refuted (the
+    $n^2+1$ primality conjecture, refuted by $n=4$).
+    Tier~3 recall is $0.000$, consistent with its design as a specificity test.
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{Tier and domain breakdown for E1. Precision omitted where
+$n_{\text{refuted}} = 0$.
+\placeholder{E2 columns pending.}}
+\label{tab:breakdown}
+\input{tables/tier_domain_breakdown}
+\end{table}
+
+\subsection{Strategy Attribution}
+
+Every E1 refutation was produced by the \textbf{BOUNDARY} strategy.
+RANDOM\_STRUCTURED, SYMBOLIC\_PERTURBATION, and ANALOGICAL contributed zero
+wins despite being exercised on all 71 survived conjectures (post-patch,
+each received at least BOUNDARY + RANDOM\_STRUCTURED).
+This finding motivates the 32B experiment: SYMBOLIC\_PERTURBATION and
+ANALOGICAL are LLM-dependent and may require stronger generation capability
+to produce verifiable candidates.
+\placeholder{E2 strategy attribution to be added.}
