@@ -426,6 +426,10 @@ class Refuter:
     # Public API
     # ------------------------------------------------------------------
 
+    async def run(self, *args, **kwargs):
+        """Compatibility wrapper for RefuteLoop."""
+        return await self.search(*args, **kwargs)
+
     async def search(
         self,
         conjecture: Conjecture,
