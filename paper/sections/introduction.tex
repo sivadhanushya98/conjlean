@@ -2,23 +2,23 @@
 \label{sec:introduction}
 
 Automated theorem proving has made substantial progress through systems such
-as AlphaProof~\citep{alphageometry2024}, COPRA~\citep{TODO}, and
+as AlphaProof~\citep{alphageometry2024} and
 LeanDojo~\citep{yang2023leandojo}, yet a complementary capability has
 received less attention: \emph{automated conjecture refutation}.
 A system that can quickly disprove false conjectures serves two roles in a
-research pipeline---it filters low-quality outputs from conjecture generators,
-and it provides the negative evidence that shapes human mathematical intuition.
+research pipeline---it filters low-quality outputs from conjecture generators
+and provides negative evidence that guides mathematical intuition.
 
-The dominant paradigm in AI-for-mathematics treats the problem as
-proof generation: given a statement believed to be true, find a proof.
+The dominant paradigm in AI-for-mathematics treats the problem as proof
+generation: given a statement believed to be true, find a proof.
 Counterexample search occupies a narrower niche despite its practical
 importance.
 QuickCheck-style random testing~\citep{claessen2000quickcheck} works well for
 programmable properties but scales poorly to number-theoretic or algebraic
-statements that require structured sampling.
-Recent LLM-based approaches~\citep{TODO} demonstrate that language models can
-propose candidate counterexamples, but stop short of a principled multi-strategy
-framework with adaptive resource allocation.
+statements requiring structured sampling.
+Large language models (LLMs) can propose candidate counterexamples, but
+prior work stops short of a principled multi-strategy framework with adaptive
+resource allocation and formal symbolic verification.
 
 We make the following contributions:
 
@@ -39,8 +39,8 @@ We make the following contributions:
     (Tier~2), and subtle or open cases (Tier~3)---spanning number theory,
     inequality, and combinatorics.
 
-  \item \textbf{Empirical evaluation} (\S\ref{sec:results}): systematic
-    comparison of 7B and 32B model scales, finding that scaling within this
-    range did not improve recall, and identifying LLM-dependent strategy
-    quality as a target for future investigation.
+  \item \textbf{Empirical evaluation} (\S\ref{sec:results}): three runs
+    comparing 7B, 32B, and a patched-verifier condition; scaling does not
+    improve recall, a parser fix recovers 7 refutations, and LLM-generated
+    candidate quality is identified as the binding constraint.
 \end{enumerate}

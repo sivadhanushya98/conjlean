@@ -25,7 +25,7 @@ causing a \texttt{SympifyError}; additionally, exponent notation
 Conjectures in the \emph{k divides f(n)} form (e.g.\ ``12 divides
 $n(n{+}1)(n{+}2)$'') were unaffected and were correctly caught by BOUNDARY.
 This bug has been patched in the codebase: a preamble-stripping regex now
-extracts only the algebraic expression, and \texttt{\^} is normalised to
+extracts only the algebraic expression, and \texttt{\^} is normalized to
 \texttt{**} before sympification.
 The E1/E2 experimental results were obtained \emph{before} this patch.
 E3 quantifies the recall impact: recall rises from $0.292$ (E1) to $0.389$ (E3),
@@ -81,7 +81,7 @@ The fix removes \texttt{evalf()} from all integer evaluation paths
 the patched tests pass for all values including $n = 9{,}883$.
 Neither affected conjecture should have been in the benchmark as false:
 both are universally true by Fermat's little theorem ($n^5 \equiv n \pmod{10}$
-and $n^5 \equiv n \pmod{15}$), constituting benchmark labelling errors.
+and $n^5 \equiv n \pmod{15}$), constituting benchmark labeling errors.
 E3 results in Table~\ref{tab:main_results} and Table~\ref{tab:breakdown}
 exclude these two candidates; the reported precision $1.000$ reflects the
 28 verified-correct refutations.
@@ -99,10 +99,9 @@ $n \leq 100$, well within exact float64 range) or E1/E2 results.
 
 \subsection{C-Agent Refinement Quality}
 
-Of the 21 refuted conjectures, all have status \texttt{refined} in the raw
+In E1, all 21 refuted conjectures have status \texttt{refined} in the raw
 loop output (the original statement was refuted, then a refined version was
-proposed and re-attacked).
-However, the evaluator correctly maps \texttt{refined} $\to$ refuted.
+proposed and re-attacked); the evaluator correctly maps \texttt{refined} $\to$ refuted.
 Inspection of several refined conjectures reveals a recurring failure mode:
 the C-Agent proposes a refinement that still fails at $n=1$, and the loop
 exhausts its refinement budget refuting successively more restricted statements

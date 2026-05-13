@@ -52,25 +52,24 @@
 \printAffiliationsAndNotice{}
 
 \begin{abstract}
-We present \textbf{ConjLean}, an end-to-end pipeline for automated mathematical
-conjecture generation, SymPy symbolic pre-filtering, Lean~4 formalization, and
-four-layer escalating proof search, paired with \textbf{REFUTE}, a multi-agent
+We present \textbf{ConjLean}, an end-to-end system for automated mathematical
+conjecture generation, symbolic pre-filtering via SymPy, Lean~4 formalization,
+and four-layer proof search, paired with \textbf{REFUTE}, a multi-agent
 counterexample-search system.
-REFUTE coordinates an R-Agent (four search strategies: boundary sweep,
-random structured sampling, symbolic perturbation, and analogical transfer),
-an S-Agent that selects strategies via a UCB1 bandit over cross-conjecture
-statistics, and a C-Agent that proposes refined conjectures when a
-counterexample is confirmed.
-We evaluate on a 92-conjecture benchmark spanning three difficulty tiers and
-three mathematical domains, with all ground-truth labels verified
-programmatically.
-Using Qwen2.5-Math-7B-Instruct, REFUTE achieves precision~$1.000$,
-recall~$0.292$ ($95\%$\,CI $[0.19,\,0.39]$), and F$_1$~$0.452$
-($[0.32,\,0.57]$) with zero false positives.
-Scaling to Qwen2.5-32B-Instruct (NF4 int4) does not improve recall within
-this experimental setting, indicating the current bottleneck is not resolved
-by this scale increase alone; LLM-dependent strategies produced no verified
-counterexamples at either scale.
+REFUTE coordinates three agents: an R-Agent applying four search strategies
+(boundary sweep, random structured sampling, symbolic perturbation, and
+analogical transfer), an S-Agent selecting strategies via UCB1 bandit, and
+a C-Agent that proposes refined conjectures on counterexample discovery.
+On a 92-conjecture benchmark spanning three difficulty tiers and three
+mathematical domains, REFUTE with Qwen2.5-Math-7B achieves precision $1.000$,
+recall $0.292$ ($95\%$ CI $[0.19, 0.39]$), and F$_1$ $0.452$ ($[0.32, 0.57]$)
+with zero false positives.
+Fixing a SymPy NL-parser bug raises recall to $0.389$ ($[0.28, 0.50]$),
+recovering 7 additional refutations; scaling to Qwen2.5-32B (NF4 int4) leaves
+all metrics unchanged.
+All refutations arise from the deterministic BOUNDARY strategy; large language
+model (LLM)-dependent strategies contribute no verified counterexamples at any
+tested configuration.
 \end{abstract}
 
 \input{sections/introduction}
