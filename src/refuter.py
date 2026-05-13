@@ -222,7 +222,7 @@ def _sympify_eval_number_theory(
         try:
             k = int(k_str.strip())
             expr = _to_sympy_expr(expr_str)
-            result = int(expr.subs(n_sym, n_val).evalf())
+            result = int(expr.subs(n_sym, n_val))
             return result % k == 0
         except (ValueError, sympy.SympifyError, TypeError):
             continue
@@ -240,7 +240,7 @@ def _sympify_eval_number_theory(
             expr = _to_sympy_expr(m.group(1))
             mod_k = int(m.group(2))
             rem = int(m.group(3))
-            result = int(expr.subs(n_sym, n_val).evalf())
+            result = int(expr.subs(n_sym, n_val))
             return result % mod_k == rem
         except (ValueError, sympy.SympifyError, TypeError):
             continue
@@ -258,7 +258,7 @@ def _sympify_eval_number_theory(
                 expr_str,
                 locals={"n": n_sym, "factorial": sympy.factorial},
             )
-            val = int(expr.subs(n_sym, n_val).evalf())
+            val = int(expr.subs(n_sym, n_val))
             return bool(sympy.isprime(val))
         except (ValueError, sympy.SympifyError, TypeError):
             pass
@@ -355,7 +355,7 @@ def _sympify_eval_combinatorics(
             int(lhs_n.subs(n_sym, n_val)),
             int(lhs_k.subs(n_sym, n_val)),
         )
-        rhs_val = int(rhs.subs(n_sym, n_val).evalf())
+        rhs_val = int(rhs.subs(n_sym, n_val))
         return int(binom_val) == rhs_val
     except (sympy.SympifyError, TypeError, ValueError):
         return None

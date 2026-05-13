@@ -28,7 +28,11 @@ This bug has been patched in the codebase: a preamble-stripping regex now
 extracts only the algebraic expression, and \texttt{\^} is normalised to
 \texttt{**} before sympification.
 The E1/E2 experimental results were obtained \emph{before} this patch.
-The impact on recall is measured in E3 (\S\ref{sec:experiments}).
+E3 quantifies the recall impact: recall rises from $0.292$ (E1) to $0.389$ (E3),
+a gain of $+7$ refutations.
+All 7 new refutations are Tier~1 number-theory conjectures involving
+$n^k$ expressions (e.g.\ ``$9$ divides $4^n-1$'', ``$25$ divides $n^5-n$'')
+that previously returned \texttt{holds=None} due to the parsing failure.
 
 \subsection{Strategist Early-Stop Bug and Fix}
 \label{sec:strategist_fix}
@@ -57,14 +61,41 @@ pipeline behavior is to try at least two strategies before concluding
 low-confidence termination, and the pre-patch shortcut constituted incorrect
 accounting of strategy coverage in experimental records.
 
+\subsection{Float64 Precision Bug in RANDOM\_STRUCTURED}
+\label{sec:evalf_bug}
+
+Post-run analysis of E3 revealed that 2 of the 30 initially reported refutations
+were false positives.
+Both arose from the RANDOM\_STRUCTURED strategy at large candidate values
+($n = 9{,}883$ and $n = 3{,}635$) on the conjectures
+``$n^5 - n$ divisible by $10$'' and ``$n^5 - n$ divisible by $15$''.
+The root cause is integer overflow via floating-point: the evaluator called
+\texttt{int(expr.subs(n, n\_val).evalf())}, which converts the result to
+\texttt{float64} before truncating to \texttt{int}.
+For $n \gtrsim 3{,}000$, the value $n^5 - n$ exceeds $2^{53}$
+(the float64 exact-integer range), causing rounding that corrupts the
+last several decimal digits and produces a spurious non-zero remainder.
+
+The fix removes \texttt{evalf()} from all integer evaluation paths
+(\texttt{int(expr.subs(n, n\_val))} is exact for integer inputs);
+the patched tests pass for all values including $n = 9{,}883$.
+Neither affected conjecture should have been in the benchmark as false:
+both are universally true by Fermat's little theorem ($n^5 \equiv n \pmod{10}$
+and $n^5 \equiv n \pmod{15}$), constituting benchmark labelling errors.
+E3 results in Table~\ref{tab:main_results} and Table~\ref{tab:breakdown}
+exclude these two candidates; the reported precision $1.000$ reflects the
+28 verified-correct refutations.
+
 \subsection{Precision and False-Positive Rate}
 
 Precision is $1.000$ in all runs ($\text{FPR} = 0.000$).
-Every accepted counterexample is SymPy-verified before being recorded as a
-refutation, and SymPy verification is exact for the polynomial and modular
-arithmetic involved in these conjectures.
-The zero false-positive rate is a structural guarantee of the pipeline, not
-a statistical result.
+Every accepted counterexample (after excluding the two E3 false positives
+described above) is SymPy-verified before being recorded.
+SymPy integer arithmetic is exact for the polynomial and modular
+expressions in these conjectures, making the zero false-positive rate
+a structural guarantee rather than a statistical outcome.
+The float64 bug described above does not affect BOUNDARY (which uses
+$n \leq 100$, well within exact float64 range) or E1/E2 results.
 
 \subsection{C-Agent Refinement Quality}
 

@@ -1,6 +1,7 @@
-% Verified from eval.json for both runs.
+% Verified from eval.json for all three runs.
 % E1: data/results/e1_seed0_postpatch/eval.json
 % E2: data/results/e2_seed0_32b/eval.json
+% E3: data/results/e4_seed0_verifier_fixed/eval.json (2 evalf FPs excluded; see text)
 \begin{tabular}{llcccccc}
 \toprule
 \textbf{Run} & \textbf{Model} & \textbf{Refuted} & \textbf{Precision} & \textbf{Recall} & \textbf{F\textsubscript{1}} & \textbf{FPR} & \textbf{Rounds} \\
@@ -10,5 +11,8 @@ E1 & Qwen2.5-Math-7B  & 21/92 & 1.000        & 0.292 [0.19, 0.39] & 0.452 [0.32,
 \addlinespace
 E2 & Qwen2.5-32B      & 21/92 & 1.000        & 0.292 [0.19, 0.39] & 0.452 [0.32, 0.57] & 0.000 & 4.00 \\
    & (NF4 int4)       &       & [1.00, 1.00] &                    &                    &       &      \\
+\addlinespace
+E3 & Qwen2.5-Math-7B  & 28/92 & 1.000        & 0.389 [0.28, 0.50] & 0.560 [0.43, 0.67] & 0.000 & 3.75 \\
+   & (patched verif.) &       & [1.00, 1.00] &                    &                    &       &      \\
 \bottomrule
 \end{tabular}
