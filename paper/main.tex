@@ -1,0 +1,87 @@
+%%%%%%%% ICML 2026 — ConjLean / REFUTE submission %%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+% Use this line for blind review submission:
+\usepackage{icml2026}
+% Camera-ready: replace above with \usepackage[accepted]{icml2026}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[capitalize,noabbrev]{cleveref}
+
+% TikZ for pipeline figure
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.geometric}
+
+\icmltitlerunning{ConjLean: Conjecture Generation and Multi-Agent Counterexample Refutation}
+
+\begin{document}
+
+\twocolumn[
+\icmltitle{ConjLean: Automated Mathematical Conjecture Generation,\\
+           Lean~4 Formalization, and Multi-Agent Counterexample Refutation}
+
+% Double-blind: author block is omitted for review.
+% Camera-ready: fill \begin{icmlauthorlist}...\end{icmlauthorlist}
+% and \icmlaffiliation / \icmlcorrespondingauthor / \icmlkeywords below.
+
+\begin{icmlauthorlist}
+  \icmlauthor{Anonymous Author(s)}{anon}
+\end{icmlauthorlist}
+\icmlaffiliation{anon}{Affiliation withheld for blind review}
+
+\icmlcorrespondingauthor{Anonymous}{anonymous@example.com}
+
+\icmlkeywords{automated theorem proving, counterexample search, conjecture generation,
+              Lean 4, multi-agent systems, machine learning for mathematics}
+
+\vskip 0.3in
+]
+
+% Print document title and author block.
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+We present \textbf{ConjLean}, an end-to-end system for automated mathematical
+conjecture generation, symbolic pre-filtering via SymPy, Lean~4 formalization,
+and four-layer proof search, paired with \textbf{REFUTE}, a multi-agent
+counterexample-search system.
+REFUTE coordinates three agents: an R-Agent applying four search strategies
+(boundary sweep, random structured sampling, symbolic perturbation, and
+analogical transfer), an S-Agent selecting strategies via UCB1 bandit, and
+a C-Agent that proposes refined conjectures on counterexample discovery.
+On a 92-conjecture benchmark spanning three difficulty tiers and three
+mathematical domains, REFUTE with Qwen2.5-Math-7B achieves precision $1.000$,
+recall $0.292$ ($95\%$ CI $[0.19, 0.39]$), and F$_1$ $0.452$ ($[0.32, 0.57]$)
+with zero false positives.
+Fixing a SymPy NL-parser bug raises recall to $0.389$ ($[0.28, 0.50]$),
+recovering 7 additional refutations; scaling to Qwen2.5-32B (NF4 int4) leaves
+all metrics unchanged.
+All refutations arise from the deterministic BOUNDARY strategy; large language
+model (LLM)-dependent strategies contribute no verified counterexamples at any
+tested configuration.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/system}
+\input{sections/benchmark}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/analysis}
+\input{sections/conclusion}
+
+\bibliography{references}
+\bibliographystyle{icml2026}
+
+\end{document}

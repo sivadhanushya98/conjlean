@@ -1,0 +1,81 @@
+\section{System Description}
+\label{sec:system}
+
+\subsection{ConjLean Pipeline}
+
+ConjLean generates and formally verifies mathematical conjectures in four stages.
+
+\paragraph{Stage 1: Conjecture generation.}
+Given a domain (e.g., \texttt{number\_theory}), an LLM is prompted with
+$k=20$ examples per batch at temperature $0.8$ to produce natural-language
+conjectures involving a small number of integer variables.
+Duplicate conjectures are filtered by normalized string hash.
+
+\paragraph{Stage 2: SymPy symbolic pre-filter.}
+Each conjecture is passed to a multiprocessing worker that attempts to
+evaluate it symbolically via SymPy with a $5$-second SIGALRM timeout.
+The filter adopts a \emph{conservative failure policy}: a conjecture is
+rejected only when a confirmed counterexample is found; ambiguous or
+timeout cases pass through.
+This stage eliminates trivially false statements without LLM cost.
+
+\paragraph{Stage 3: Lean 4 formalization.}
+Surviving conjectures are translated to Lean~4 via an LLM with an error-repair
+loop of up to five retries.
+Each attempt is checked by a persistent Lean REPL subprocess communicating via
+newline-delimited JSON.
+Conjectures that fail to typecheck after five attempts are discarded.
+
+\paragraph{Stage 4: Proof search.}
+Formalized conjectures enter a four-layer proof search with escalating
+timeouts: Layer~0 applies \texttt{auto} (5\,s); Layer~1 applies a library of
+Mathlib tactic combinations (30\,s); Layer~2 applies search tactics including
+\texttt{decide} and \texttt{norm\_num} (60\,s); Layer~3 engages a multi-turn
+LLM dialogue to propose custom tactic sequences (120\,s, up to 3 rounds).
+
+\subsection{REFUTE Pipeline}
+
+\input{figures/refute_pipeline}
+
+REFUTE attacks conjectures that survive proof search (i.e., are neither proved
+nor immediately disproved).
+It coordinates three agents in a closed loop (Figure~\ref{fig:refute_pipeline}).
+
+\paragraph{R-Agent (Refuter).}
+Implements four counterexample-search strategies:
+\begin{itemize}[noitemsep]
+  \item \textbf{BOUNDARY}: deterministic sweep over edge cases
+    ($n \in \{0, 1, 2, -1, \text{large primes}, \text{squares}, \ldots\}$).
+    Cheap, requires no LLM.
+  \item \textbf{RANDOM\_STRUCTURED}: samples candidates respecting variable
+    constraints using prime/square/Fibonacci structure.
+    Moderate cost, no LLM.
+  \item \textbf{SYMBOLIC\_PERTURBATION}: prompts the LLM to identify parameter
+    values that should stress-test the conjecture, then sweeps a neighborhood.
+  \item \textbf{ANALOGICAL}: prompts the LLM to transfer counterexample
+    patterns from past successes in the same domain.
+\end{itemize}
+Each candidate is verified by SymPy with a $4$-second async timeout.
+
+\paragraph{S-Agent (Strategist).}
+Selects which strategy to apply next using UCB1 with exploration constant
+$C = \sqrt{2}$:
+\[
+  \text{score}(s) = \hat{w}(s) + C\sqrt{\frac{\ln N}{n_s}} + 0.2 \cdot \hat{w}_d(s)
+\]
+where $\hat{w}(s)$ is the empirical win rate of strategy $s$, $N$ is total
+strategy attempts, $n_s$ is attempts of $s$, and $\hat{w}_d(s)$ is the
+per-domain win rate (domain-awareness bonus).
+When global sample counts are below $5$ per strategy, the Strategist falls
+back to LLM guidance.
+A low-confidence early-stop terminates a conjecture if all untried strategies
+have $\geq 5$ global attempts with win rate $< 5\%$
+\emph{and} at least two strategies have already been tried for the current
+conjecture.
+
+\paragraph{C-Agent (Conjecture Refiner).}
+When a counterexample is confirmed, the C-Agent prompts the LLM to propose a
+narrowed version of the conjecture that excludes the counterexample.
+The loop restarts on the refined statement (up to three refinements).
+If the LLM response cannot be parsed as JSON, a heuristic fallback appends an
+exclusion clause.

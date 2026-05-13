@@ -1,0 +1,41 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented ConjLean and REFUTE, complementary systems for automated
+mathematical conjecture generation, Lean~4 formalization, and multi-agent
+counterexample refutation.
+On a 92-conjecture benchmark, REFUTE with Qwen2.5-Math-7B achieves perfect
+precision ($1.000$) and recall $0.292$ (E1), with all refutations attributable to
+deterministic boundary sweep.
+LLM-dependent strategies (symbolic perturbation, analogical transfer) do not
+yet contribute at 7B scale.
+
+Scaling from Qwen2.5-Math-7B to Qwen2.5-32B-Instruct (NF4 int4, E2) did not
+change recall, precision, or the set of refuted conjectures.
+Fixing a SymPy NL-parser bug that silently failed on $n^k$ expressions (E3)
+raises recall from $0.292$ to $0.389$, recovering 7 additional Tier~1
+number-theory conjectures.
+Together, these results show that verifier correctness is a prerequisite for
+meaningful recall measurement: bugs in the evaluation layer mask true pipeline
+capability more than model scale affects it in the tested range.
+
+Key lessons from E1, E2, and E3:
+(1) zero false positives are achievable through exact SymPy integer arithmetic
+--- but only when floating-point intermediates are avoided; a \texttt{float64}
+truncation bug in the large-$n$ evaluation path produced two spurious
+refutations in E3 before being identified and patched;
+(2) recall for non-trivial strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL)
+did not improve across the tested scale and verifier-fix range, pointing to
+LLM-generated candidate quality as the binding constraint;
+(3) verifier and parser correctness matters more than model scale for recall
+in the current regime.
+
+\paragraph{Future work.}
+Domain-specific LoRA fine-tuning of the Refuter on verified counterexample
+triples (the \texttt{make finetune-refuter} pipeline) is the most direct path
+to improving SYMBOLIC\_PERTURBATION yield.
+Richer C-Agent prompting that explicitly checks whether refined statements
+still fail at $n=1$ would address the refinement-loop failure mode identified
+in \S\ref{sec:analysis}.
+Extending the benchmark to cover algebraic geometry and combinatorial
+identities would stress-test ANALOGICAL more meaningfully.

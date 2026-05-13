@@ -1,0 +1,46 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Automated theorem proving has made substantial progress through systems such
+as AlphaProof~\citep{alphageometry2024} and
+LeanDojo~\citep{yang2023leandojo}, yet a complementary capability has
+received less attention: \emph{automated conjecture refutation}.
+A system that can quickly disprove false conjectures serves two roles in a
+research pipeline---it filters low-quality outputs from conjecture generators
+and provides negative evidence that guides mathematical intuition.
+
+The dominant paradigm in AI-for-mathematics treats the problem as proof
+generation: given a statement believed to be true, find a proof.
+Counterexample search occupies a narrower niche despite its practical
+importance.
+QuickCheck-style random testing~\citep{claessen2000quickcheck} works well for
+programmable properties but scales poorly to number-theoretic or algebraic
+statements requiring structured sampling.
+Large language models (LLMs) can propose candidate counterexamples, but
+prior work stops short of a principled multi-strategy framework with adaptive
+resource allocation and formal symbolic verification.
+
+We make the following contributions:
+
+\begin{enumerate}[noitemsep]
+  \item \textbf{ConjLean pipeline} (\S\ref{sec:system}): an end-to-end system
+    that generates conjectures via a temperature-0.8 LLM, applies a SymPy
+    symbolic pre-filter, formalizes survivors in Lean~4, and attempts proof
+    via a four-layer escalating tactic search.
+
+  \item \textbf{REFUTE pipeline} (\S\ref{sec:system}): a three-agent
+    counterexample-search framework combining deterministic boundary sweep,
+    structured random sampling, LLM-guided symbolic perturbation, and
+    analogical transfer, coordinated by a UCB1 strategy-selection bandit.
+
+  \item \textbf{A tiered benchmark} (\S\ref{sec:benchmark}): 92 conjectures
+    across three difficulty tiers---synthetic-false with verified
+    counterexamples (Tier~1), historical conjectures with known outcomes
+    (Tier~2), and subtle or open cases (Tier~3)---spanning number theory,
+    inequality, and combinatorics.
+
+  \item \textbf{Empirical evaluation} (\S\ref{sec:results}): three runs
+    comparing 7B, 32B, and a patched-verifier condition; scaling does not
+    improve recall, a parser fix recovers 7 refutations, and LLM-generated
+    candidate quality is identified as the binding constraint.
+\end{enumerate}

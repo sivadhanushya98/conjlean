@@ -1,0 +1,76 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Primary Metrics}
+
+Table~\ref{tab:main_results} reports overall REFUTE performance.
+E1 (7B) achieves perfect precision with 21 refutations out of 92 conjectures.
+Recall of $0.292$ means 51 of 72 truly-false conjectures are not refuted
+by the 7B model on this benchmark.
+E2 (32B int4) produces identical recall to E1: precision $1.000$, recall
+$0.292$, F$_1$ $0.452$, all 21 refutations via BOUNDARY.
+E3 (7B, patched verifier) improves recall to $0.389$: 28 correct refutations,
+all via BOUNDARY, precision $1.000$.
+The $+7$ refutations over E1 are exclusively in number theory and are entirely
+attributable to the SymPy NL-parser fix described in \S\ref{sec:analysis}.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{REFUTE primary metrics. CI = 95\% bootstrap confidence interval.
+E3 figures exclude 2 RANDOM\_STRUCTURED false positives caused by a float64
+precision bug (now fixed); see \S\ref{sec:analysis}.}
+\label{tab:main_results}
+\input{tables/main_results}
+\end{table*}
+
+\subsection{Tier and Domain Breakdown}
+
+Table~\ref{tab:breakdown} disaggregates results by tier and domain:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Number theory dominates.}
+    All refutations across E1, E2, and E3 are in number theory.
+    Inequality and combinatorics recall is $0.000$ in all three runs.
+
+  \item \textbf{Tier 1 recall improves with the parser fix.}
+    E1/E2 Tier~1 recall is $0.339$ (20/59).
+    E3 raises this to $0.458$ (27/59), recovering
+    7 additional Tier~1 conjectures involving $n^k$ expressions that
+    previously failed to sympify.
+
+  \item \textbf{Tier 2 / Tier 3 recall is unchanged.}
+    Only 1 of 6 false Tier~2 conjectures is refuted in all three runs
+    (the $n^2+1$ primality conjecture, refuted by $n=4$).
+    Tier~3 recall is $0.000$, consistent with its design as a specificity test.
+\end{itemize}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Tier and domain breakdown for E1, E2, and E3. Precision omitted where
+$n_{\text{refuted}} = 0$.}
+\label{tab:breakdown}
+\input{tables/tier_domain_breakdown}
+\end{table*}
+
+\subsection{Strategy Attribution}
+
+Every E1 refutation was produced by the \textbf{BOUNDARY} strategy.
+RANDOM\_STRUCTURED, SYMBOLIC\_PERTURBATION, and ANALOGICAL contributed zero
+wins despite being exercised on all 71 survived conjectures (post-patch,
+each received at least BOUNDARY + RANDOM\_STRUCTURED).
+This finding motivated the 32B experiment: SYMBOLIC\_PERTURBATION and
+ANALOGICAL are LLM-dependent and may require stronger generation capability
+to produce verifiable candidates.
+E2 (32B) confirms this pattern: all 21 refutations remain attributed to
+BOUNDARY. Five survived conjectures received all four strategies (vs.\ at most
+two in E1), yet none yielded a verified counterexample.
+E3 continues this pattern: all 28 correct refutations are BOUNDARY wins.
+RANDOM\_STRUCTURED produced two candidates that the pipeline initially
+accepted, but both were subsequently identified as false positives caused
+by a float64 precision bug in the SymPy evaluator (\texttt{int(\ldots.evalf())}
+loses the last digits for $n \gtrsim 3{,}000$).
+This bug has been fixed (\texttt{evalf()} removed from integer evaluation paths);
+the two affected conjectures are also benchmark errors (universally true
+by Fermat's little theorem) so they do not affect precision in context.

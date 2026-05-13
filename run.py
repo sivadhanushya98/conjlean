@@ -120,6 +120,7 @@ async def _cmd_refute(args: argparse.Namespace) -> None:
         max_rounds=args.max_rounds,
         max_refinements=args.max_refinements,
         max_concurrent=args.max_concurrent,
+        output_path=results_path,
     )
 
     # Save results

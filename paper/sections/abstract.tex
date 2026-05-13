@@ -1,0 +1,26 @@
+\begin{abstract}
+We present \textbf{ConjLean}, an end-to-end system for automated mathematical
+conjecture generation, symbolic pre-filtering, Lean~4 formalization, and
+four-layer proof search, paired with \textbf{REFUTE}, a multi-agent
+counterexample-search pipeline.
+REFUTE coordinates three specialized agents: an R-Agent that applies four
+complementary search strategies (boundary sweep, random structured sampling,
+symbolic perturbation, and analogical transfer), an S-Agent that selects
+strategies using a UCB1 bandit policy over cross-conjecture success statistics,
+and a C-Agent that proposes refined conjectures when counterexamples are found.
+We evaluate on a 92-conjecture benchmark spanning three difficulty tiers and
+three mathematical domains.
+Using Qwen2.5-Math-7B-Instruct, REFUTE achieves precision $1.00$,
+recall $0.292$ ($95\%$ CI $[0.19, 0.39]$), and
+F$_1$ $0.452$ ($95\%$ CI $[0.32, 0.57]$) with zero false positives across
+all 21 refutations.
+Scaling to Qwen2.5-32B-Instruct (NF4 int4) leaves all metrics unchanged:
+precision $1.00$, recall $0.292$, F$_1$ $0.452$, with the same 21 conjectures
+refuted by the same BOUNDARY strategy.
+Scaling within the tested Qwen family (7B\,\textrightarrow\,32B) did not
+improve recall on this benchmark, suggesting the current bottleneck is not
+resolved by this scale increase alone; LLM-dependent strategies
+(symbolic perturbation, analogical transfer) produced no verified
+counterexamples at either scale.
+Inequality and combinatorics domains remain entirely unsolved.
+\end{abstract}

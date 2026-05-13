@@ -1,0 +1,42 @@
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\paragraph{Models.}
+We evaluate three runs:
+\begin{itemize}[noitemsep]
+  \item \textbf{E1 — Qwen2.5-Math-7B-Instruct}~\citep{qwen2025math}:
+    a math-specialized 7B model loaded in bf16 on a single NVIDIA A100-SXM4
+    (40\,GB).
+    Used for all four REFUTE strategies, conjecture refinement, and
+    Strategist LLM fallback.
+  \item \textbf{E2 — Qwen2.5-32B-Instruct}~\citep{qwen2025}:
+    a general-purpose 32B model loaded in 4-bit NF4 quantization via
+    bitsandbytes~0.49~\citep{dettmers2023qlora} on the same A100-40\,GB
+    (${\approx}19$\,GB VRAM at inference).
+    Identical settings to E1 except model and concurrency.
+  \item \textbf{E3 — Qwen2.5-Math-7B-Instruct (patched verifier)}:
+    identical to E1 in all settings, but run after the SymPy NL-parser fix
+    described in \S\ref{sec:analysis}.
+    E3 isolates the recall impact of the verifier bug.
+\end{itemize}
+
+\paragraph{Inference.}
+Both models are served via \texttt{transformers} \texttt{pipeline} with
+\texttt{device\_map=auto} and \texttt{max\_new\_tokens=4096}.
+No model is fine-tuned; all results reflect zero-shot or few-shot prompting
+as described in \S\ref{sec:system}.
+
+\paragraph{REFUTE configuration.}
+Each conjecture is allocated \texttt{max\_rounds=10} R-Agent rounds and up to
+\texttt{max\_refinements=3} C-Agent refinements.
+E1 uses \texttt{max\_concurrent=2}; E2 uses \texttt{max\_concurrent=1} due to
+the larger model footprint.
+Both runs use \texttt{seed=0} for Python \texttt{random} seeding
+(LLM outputs and structured-random candidates remain non-deterministic).
+
+\paragraph{Evaluation metrics.}
+Precision, recall, and F$_1$ are computed over the binary refutation
+decision (refuted vs.\ survived) against ground-truth falsity labels.
+A conjecture with status \texttt{refined} is treated as refuted
+(the original statement was disproved).
+Bootstrap 95\% confidence intervals use $n=1{,}000$ resamples.

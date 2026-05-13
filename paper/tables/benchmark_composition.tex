@@ -1,0 +1,13 @@
+% Verified from data/benchmark/ (wc -l on tier{1,2,3}.jsonl)
+% Truly-false counts verified from eval JSON domain/tier breakdowns
+\begin{tabular}{lrrrl}
+\toprule
+\textbf{Tier} & \textbf{Total} & \textbf{False} & \textbf{True} & \textbf{Description} \\
+\midrule
+Tier 1 (synthetic)   & 59 & 59 & 0  & Synthetically-false; verified counterexample \\
+Tier 2 (historical)  & 23 &  6 & 17 & Known-outcome historical conjectures \\
+Tier 3 (subtle)      & 10 &  7 &  3 & Scope-ambiguous / open cases \\
+\midrule
+\textbf{Total}       & 92 & 72 & 20 & \\
+\bottomrule
+\end{tabular}

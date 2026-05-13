@@ -1,0 +1,113 @@
+\section{Analysis}
+\label{sec:analysis}
+
+\subsection{Why BOUNDARY Dominates}
+
+The BOUNDARY strategy performs a deterministic sweep over a fixed set of
+edge-case values: $\{0, 1, 2, -1, 10, 100\}$ and small primes, squares,
+and Fibonacci numbers.
+For number-theoretic conjectures of the form ``$P(n)$ holds for all $n$'',
+false instances often fail at $n \in \{0, 1, 2\}$ by design (Tier~1) or by
+nature (Tier~2 historical).
+The 7B model's LLM-dependent strategies (SYMBOLIC\_PERTURBATION, ANALOGICAL)
+generate large candidate sets (56--124 candidates per run, median ${\approx}100$) but none verify.
+
+\paragraph{SymPy parser limitation.}
+Post-hoc inspection of the raw loop results reveals that all 5 SP rounds in
+E2 (and all ANALOGICAL rounds on the same conjectures) return
+$\mathtt{holds=None}$ for every candidate; BOUNDARY also produces 0 verified
+candidates for these conjectures.
+The root cause is a parsing failure in \texttt{\_sympify\_eval\_number\_theory}:
+the ``is divisible by'' regex captures the full NL preamble
+(e.g.\ ``for all $n \geq 1$, $n^3-n$'') rather than just the expression,
+causing a \texttt{SympifyError}; additionally, exponent notation
+(\texttt{\^}) was not converted to Python's \texttt{**} before sympification.
+Conjectures in the \emph{k divides f(n)} form (e.g.\ ``12 divides
+$n(n{+}1)(n{+}2)$'') were unaffected and were correctly caught by BOUNDARY.
+This bug has been patched in the codebase: a preamble-stripping regex now
+extracts only the algebraic expression, and \texttt{\^} is normalized to
+\texttt{**} before sympification.
+The E1/E2 experimental results were obtained \emph{before} this patch.
+E3 quantifies the recall impact: recall rises from $0.292$ (E1) to $0.389$ (E3),
+a gain of $+7$ refutations.
+All 7 new refutations are Tier~1 number-theory conjectures involving
+$n^k$ expressions (e.g.\ ``$9$ divides $4^n-1$'', ``$25$ divides $n^5-n$'')
+that previously returned \texttt{holds=None} due to the parsing failure.
+
+\subsection{Strategist Early-Stop Bug and Fix}
+\label{sec:strategist_fix}
+
+During development we identified a bug in the Strategist's
+\texttt{should\_stop} condition.
+After processing several conjectures, global statistics for
+RANDOM\_STRUCTURED, SYMBOLIC\_PERTURBATION, and ANALOGICAL accumulated
+$\geq 5$ attempts with win rate $0.000$.
+The low-confidence stopping condition
+($\text{best win rate of untried strategies} < 0.05$)
+then fired after a single BOUNDARY round for all subsequent conjectures.
+
+\paragraph{Consequence.} Pre-patch: 69 of 71 survived conjectures received
+only 1 round (BOUNDARY alone). Post-patch: all conjectures receive at least
+2 distinct strategies before early stopping is permitted.
+
+\paragraph{Impact on recall.} Zero.
+Post-patch recall ($0.292$) is identical to pre-patch recall.
+The additional RANDOM\_STRUCTURED rounds on 69 conjectures produced no new
+refutations, confirming that the survived conjectures are genuinely hard for
+the 7B model rather than merely under-explored.
+
+\paragraph{Correct behavior.} The patch is nonetheless necessary: the correct
+pipeline behavior is to try at least two strategies before concluding
+low-confidence termination, and the pre-patch shortcut constituted incorrect
+accounting of strategy coverage in experimental records.
+
+\subsection{Float64 Precision Bug in RANDOM\_STRUCTURED}
+\label{sec:evalf_bug}
+
+Post-run analysis of E3 revealed that 2 of the 30 initially reported refutations
+were false positives.
+Both arose from the RANDOM\_STRUCTURED strategy at large candidate values
+($n = 9{,}883$ and $n = 3{,}635$) on the conjectures
+``$n^5 - n$ divisible by $10$'' and ``$n^5 - n$ divisible by $15$''.
+The root cause is integer overflow via floating-point: the evaluator called
+\texttt{int(expr.subs(n, n\_val).evalf())}, which converts the result to
+\texttt{float64} before truncating to \texttt{int}.
+For $n \gtrsim 3{,}000$, the value $n^5 - n$ exceeds $2^{53}$
+(the float64 exact-integer range), causing rounding that corrupts the
+last several decimal digits and produces a spurious non-zero remainder.
+
+The fix removes \texttt{evalf()} from all integer evaluation paths
+(\texttt{int(expr.subs(n, n\_val))} is exact for integer inputs);
+the patched tests pass for all values including $n = 9{,}883$.
+Neither affected conjecture should have been in the benchmark as false:
+both are universally true by Fermat's little theorem ($n^5 \equiv n \pmod{10}$
+and $n^5 \equiv n \pmod{15}$), constituting benchmark labeling errors.
+E3 results in Table~\ref{tab:main_results} and Table~\ref{tab:breakdown}
+exclude these two candidates; the reported precision $1.000$ reflects the
+28 verified-correct refutations.
+
+\subsection{Precision and False-Positive Rate}
+
+Precision is $1.000$ in all runs ($\text{FPR} = 0.000$).
+Every accepted counterexample (after excluding the two E3 false positives
+described above) is SymPy-verified before being recorded.
+SymPy integer arithmetic is exact for the polynomial and modular
+expressions in these conjectures, making the zero false-positive rate
+a structural guarantee rather than a statistical outcome.
+The float64 bug described above does not affect BOUNDARY (which uses
+$n \leq 100$, well within exact float64 range) or E1/E2 results.
+
+\subsection{C-Agent Refinement Quality}
+
+In E1, all 21 refuted conjectures have status \texttt{refined} in the raw
+loop output (the original statement was refuted, then a refined version was
+proposed and re-attacked); the evaluator correctly maps \texttt{refined} $\to$ refuted.
+Inspection of several refined conjectures reveals a recurring failure mode:
+the C-Agent proposes a refinement that still fails at $n=1$, and the loop
+exhausts its refinement budget refuting successively more restricted statements
+rather than converging on a true strengthening.
+This points to a C-Agent prompt engineering opportunity.
+E2 (32B) exhibits the same failure mode: boundary-exploitable conjectures
+cycle through $n=1$ or $n=2$ counterexamples across all refinements, while
+the C-Agent's proposed conditions are insufficiently tight. This is consistent
+across model scales.

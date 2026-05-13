@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 _UCB1_EXPLORATION_CONSTANT: float = 1.414  # sqrt(2)
 _MIN_SAMPLES_FOR_UCB: int = 5          # below this, ask the LLM for guidance
 _STOP_CONFIDENCE_THRESHOLD: float = 0.05  # if best strategy win-rate < 5 %, stop
+_MIN_STRATEGIES_BEFORE_LOW_CONF_STOP: int = 2  # must try at least this many before low-confidence early-stop
 _LLM_STRATEGY_TEMPERATURE: float = 0.2
 _LLM_ANALYSIS_TEMPERATURE: float = 0.4
 _MAX_TOKENS_STRATEGY: int = 256
@@ -382,12 +383,15 @@ class Strategist:
             # This path is covered by Condition 1, but be explicit
             return True, "no_strategies_remaining"
 
-        # Check if the best untried strategy has sufficient empirical win rate
+        # Check if the best untried strategy has sufficient empirical win rate.
+        # Require at least _MIN_STRATEGIES_BEFORE_LOW_CONF_STOP tried first so a
+        # single BOUNDARY failure can never trigger early stopping on its own.
         best_win_rate = max(
             self._global_stats[s].win_rate for s in available_untried
         )
         if (
-            all(self._global_stats[s].attempts >= _MIN_SAMPLES_FOR_UCB for s in available_untried)
+            len(tried) >= _MIN_STRATEGIES_BEFORE_LOW_CONF_STOP
+            and all(self._global_stats[s].attempts >= _MIN_SAMPLES_FOR_UCB for s in available_untried)
             and best_win_rate < _STOP_CONFIDENCE_THRESHOLD
         ):
             reason = (

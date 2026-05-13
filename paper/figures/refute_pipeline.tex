@@ -1,0 +1,70 @@
+% REFUTE pipeline diagram — single-column width
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.55cm and 0.4cm,
+  box/.style={draw, rounded corners=3pt, text centered, font=\small,
+              minimum height=0.55cm, inner sep=3pt},
+  agent/.style={box, fill=blue!10, minimum width=2.2cm},
+  strat/.style={box, fill=orange!15, minimum width=1.5cm, font=\footnotesize},
+  io/.style={box, fill=gray!12, minimum width=2.2cm},
+  decision/.style={diamond, draw, fill=yellow!20, aspect=2.2,
+                   font=\footnotesize, text centered, inner sep=1pt},
+  arr/.style={-Stealth, thick},
+  darr/.style={-Stealth, thick, dashed},
+]
+
+% Input
+\node[io] (conj) {Conjectures};
+
+% S-Agent
+\node[agent, below=of conj] (sagent) {S-Agent (UCB1)};
+\draw[arr] (conj) -- (sagent);
+
+% Strategy block
+\node[strat, below left=0.55cm and 0.8cm of sagent]  (bnd)  {BOUNDARY};
+\node[strat, below left=0.55cm and -0.25cm of sagent] (rnd)  {RANDOM};
+\node[strat, below right=0.55cm and -0.25cm of sagent] (sym)  {SYM.PERT.};
+\node[strat, below right=0.55cm and 0.8cm of sagent]  (ana)  {ANALOGICAL};
+
+% R-Agent label
+\node[agent, below=1.45cm of sagent] (ragent) {R-Agent};
+\draw[arr] (sagent) -- (bnd);
+\draw[arr] (sagent) -- (rnd);
+\draw[arr] (sagent) -- (sym);
+\draw[arr] (sagent) -- (ana);
+\draw[arr] (bnd) -- (ragent);
+\draw[arr] (rnd) -- (ragent);
+\draw[arr] (sym) -- (ragent);
+\draw[arr] (ana) -- (ragent);
+
+% SymPy verify
+\node[io, below=of ragent] (verify) {SymPy Verify};
+\draw[arr] (ragent) -- (verify);
+
+% Decision
+\node[decision, below=0.5cm of verify] (found) {CE found?};
+\draw[arr] (verify) -- (found);
+
+% C-Agent branch
+\node[agent, right=1.0cm of found] (cagent) {C-Agent};
+\node[io, above=0.5cm of cagent] (refined) {Refined stmt.};
+\draw[arr] (found) -- node[above, font=\footnotesize]{yes} (cagent);
+\draw[arr] (cagent) -- (refined);
+\draw[darr] (refined.north) -- ++(0,0.3) -| (sagent.east);
+
+% No branch → survive or terminate
+\node[io, below=0.5cm of found] (survive) {Survive / Stop};
+\draw[arr] (found) -- node[right, font=\footnotesize]{no} (survive);
+
+% Loop back from no-find to S-Agent (more rounds)
+\draw[darr] (survive.west) -- ++(-0.5,0) |- node[left, font=\tiny, pos=0.25]{more rounds} (sagent.west);
+
+\end{tikzpicture}
+\caption{REFUTE pipeline. The S-Agent selects a search strategy via UCB1;
+the R-Agent executes it and submits candidates for SymPy verification.
+On a confirmed counterexample, the C-Agent proposes a refined conjecture
+(dashed arrows) that re-enters the loop. On no counterexample, the loop
+continues until a stopping condition or budget is reached.}
+\label{fig:refute_pipeline}
+\end{figure}
