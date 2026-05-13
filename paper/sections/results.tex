@@ -14,14 +14,15 @@ all via BOUNDARY, precision $1.000$.
 The $+7$ refutations over E1 are exclusively in number theory and are entirely
 attributable to the SymPy NL-parser fix described in \S\ref{sec:analysis}.
 
-\begin{table}[h]
+\begin{table*}[t]
 \centering
+\small
 \caption{REFUTE primary metrics. CI = 95\% bootstrap confidence interval.
 E3 figures exclude 2 RANDOM\_STRUCTURED false positives caused by a float64
 precision bug (now fixed); see \S\ref{sec:analysis}.}
 \label{tab:main_results}
 \input{tables/main_results}
-\end{table}
+\end{table*}
 
 \subsection{Tier and Domain Breakdown}
 
@@ -45,13 +46,14 @@ Several patterns are immediately apparent:
     Tier~3 recall is $0.000$, consistent with its design as a specificity test.
 \end{itemize}
 
-\begin{table}[h]
+\begin{table*}[t]
 \centering
+\small
 \caption{Tier and domain breakdown for E1, E2, and E3. Precision omitted where
 $n_{\text{refuted}} = 0$.}
 \label{tab:breakdown}
 \input{tables/tier_domain_breakdown}
-\end{table}
+\end{table*}
 
 \subsection{Strategy Attribution}
 
